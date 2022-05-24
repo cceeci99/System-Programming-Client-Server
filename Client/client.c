@@ -11,7 +11,8 @@
 #define BUFFSIZE 4096
 
 int create_dir(char *name);
-int create_file(char *name);
+FILE* create_file(char *name);
+void copy_file(FILE* fp, int socket);
 
 int main(int argc, char *argv[]) {
 
@@ -34,9 +35,8 @@ int main(int argc, char *argv[]) {
     }
     
     printf("Client's parameters are:\n");
-
-    printf("Port: %d\n", port);
     printf("Server's IP: %s\n", serverIP);
+    printf("Port: %d\n", port);
     printf("Directory: %s\n", dir);
 
     // create socket
@@ -57,20 +57,20 @@ int main(int argc, char *argv[]) {
         perror("connect");
         exit(EXIT_FAILURE);
     }
-
-    printf("Client connected to server, desired dir to copy: Server/%s\n", dir);
     
+    printf("Connecting to %s on port %d\n", serverIP, port);
+    
+    // send to server how many bytes he will read for the directory name
     int bytes_to_write = htonl(strlen(dir));
     write(sock, &bytes_to_write, sizeof(bytes_to_write));
 
+    // write the directory to the socket
     write(sock, dir, strlen(dir));
 
     // read the number of files that are gonna be copied
     int no_files = 0;
     read(sock, &no_files, sizeof(no_files));
     no_files = ntohl(no_files);
-
-    printf("%d files to copy\n", no_files);
 
     for (int i=0; i<no_files; i++) {
 
@@ -79,11 +79,13 @@ int main(int argc, char *argv[]) {
         read(sock, &bytes_to_read, sizeof(bytes_to_read));
         bytes_to_read = ntohl(bytes_to_read);
 
+        // read the filename
         char* filename = calloc(bytes_to_read, sizeof(char));
         read(sock, filename, bytes_to_read);
 
         printf("Received file: %s\n", filename);
 
+        // tokenize and get directory's tree hierarchy
         char* temp = strdup(filename);
         char* token = strtok(temp, "/");
         char* dir = malloc(strlen(token));
@@ -97,14 +99,17 @@ int main(int argc, char *argv[]) {
                 strcat(dir, last);
                 strcat(dir, "/");
 
-                create_dir(dir);
+                create_dir(dir);    // create the given directory
             }
 
             last = token;
             token = strtok(NULL, "/");
         }
         
-        int fd = create_file(filename);
+        FILE* fp = create_file(filename);     // create the given file
+
+        copy_file(fp, sock);
+       
     }
 
     close(sock);
@@ -112,16 +117,41 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int create_file(char *name) {
 
-    int fd = open(name, O_WRONLY | O_CREAT, 0777);
-    if (fd == -1) {
-        perror("open");
-        exit(EXIT_FAILURE);
+void copy_file(FILE* fp, int socket) {
+
+    int file_sz = 0;
+    read(socket, &file_sz, sizeof(file_sz));
+    file_sz = ntohl(file_sz);
+
+    printf("File size to copy: %d\n", file_sz);
+
+    int total_bytes_copied = 0;
+
+    while (total_bytes_copied < file_sz) {
+        
+        // read number of bytes per block to read
+        int block_bytes = 0;
+        read(socket, &block_bytes, sizeof(block_bytes));
+        block_bytes = ntohl(block_bytes);
+
+        char* block = calloc(block_bytes, sizeof(char));
+        read(socket, block, block_bytes);
+
+        // printf("Client read %d bytes, block: %s\n", block_bytes, block);
+        fwrite(block, sizeof(char), block_bytes, fp);
+
+        total_bytes_copied += block_bytes;
     }
-
-    return fd;
 }
+
+
+int file_exists(char *filename) {
+    
+    struct stat   buffer;   
+    return (stat (filename, &buffer) == 0);
+}
+
 
 int create_dir(char *name) {
     
@@ -135,4 +165,19 @@ int create_dir(char *name) {
     }
 
     return 0;
+}
+
+
+FILE* create_file(char *name) {
+    if (file_exists(name)) {
+        unlink(name);
+    }
+
+    FILE* fp = fopen(name, "w");
+    if (fp == NULL) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    return fp;
 }

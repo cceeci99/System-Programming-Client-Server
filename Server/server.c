@@ -15,7 +15,7 @@
 Queue queue;
 
 void get_dir_content(char * path);
-
+void send_file_content(char* fname, size_t block_sz, int client_socket);
 
 int main(int argc, char *argv[]) {
 
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 
     // listen for requests
     listen(sock, 5);
-    printf("Server Listening...\n");
+    printf("Listening for connection on port: %d...\n", port);
 
     while (1) {
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         
-        printf("Client connected\n");
+        printf("Accepted connection from localhost\n");
 
         // bytes to read for the directory string
         int bytes_to_read = 0;
@@ -107,6 +107,8 @@ int main(int argc, char *argv[]) {
 
             // write the filename from the queue
             write(client_socket, filename, strlen(filename));
+
+            send_file_content(filename, block_sz, client_socket);
         }
     }
 
@@ -114,6 +116,44 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+
+
+void send_file_content(char* fname, size_t block_sz, int client_socket) {
+    
+    // allocate buffer to read from the file
+    char* buff = calloc(block_sz, sizeof(char));
+    size_t buff_sz;
+
+    FILE* fp = fopen(fname, "r");
+    if (fp == NULL) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    // find the size of the file in bytes
+    fseek(fp, 0L, SEEK_END);
+    long int res = ftell(fp);
+    printf("File size in bytes: %ld\n", res);
+
+    // send the size of the file to the client
+    int file_sz = htonl(res);
+    write(client_socket, &file_sz, sizeof(file_sz));
+
+    // reset file pointer to the beginning of the file
+    fseek(fp, 0, SEEK_SET);
+
+    // read file block by block(with block_sz) and store it in buff
+    while ((buff_sz = fread(buff, sizeof(char), block_sz, fp)) > 0) {
+        
+        // send how many bytes you gonna write to socket
+        int bytes_to_write = htonl(buff_sz);
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
+
+        // write the actual buffer to the socket
+        write(client_socket, buff, buff_sz);
+    }
+}
+
 
 void get_dir_content(char * path) {
 
