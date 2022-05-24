@@ -20,6 +20,9 @@
 
 Queue queue;
 
+pthread_mutex_t queue_mutex;
+pthread_cond_t queue_full;
+pthread_cond_t queue_empty;
 
 void get_dir_content(char * path);
 
@@ -80,6 +83,10 @@ int main(int argc, char *argv[]) {
     listen(sock, 5);
     printf("Listening for connection on port: %d...\n", port);
 
+    pthread_mutex_init(&queue_mutex, NULL);
+    pthread_cond_init(&queue_empty, NULL);
+    pthread_cond_init(&queue_full, NULL);
+
     while (1) {
 
         struct sockaddr_in client_addr;
@@ -123,6 +130,51 @@ void read_th(int client_socket) {
     get_dir_content(dirname);
 }
 
+void get_dir_content(char * path) {
+
+    // open dir
+    DIR * d = opendir(path);
+    if (d == NULL) {
+        printf("No such dir in Server's hierarchy\n");
+        return;
+    }
+
+    struct dirent *dir;
+
+    while ((dir = readdir(d)) != NULL) {
+
+        if(dir-> d_type != DT_DIR) {                                // if the type is not directory just print it with blue color
+
+            char *path_to_file = calloc(BUFFSIZE, sizeof(char));
+            sprintf(path_to_file, "%s/%s", path, dir->d_name);
+
+            printf("Adding file %s to the queue...\n", path_to_file);
+
+            // --------------------------------------------
+            pthread_mutex_lock(&queue_mutex);
+            pthread_cond_wait(&queue_full, &queue_mutex);
+
+            push(queue, path_to_file);
+            
+            pthread_cond_signal(&queue_empty);
+            pthread_mutex_unlock(&queue_mutex);
+            // --------------------------------------------
+        
+        }
+        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ) {    // it's directory
+
+            char subdir[BUFFSIZE];
+            sprintf(subdir, "%s/%s", path, dir->d_name);
+
+            // recursively show contents of subdir
+            get_dir_content(subdir);
+        }
+    }
+    
+    // close dir
+    closedir(d);
+}
+
 
 void write_th(int client_socket, int block_sz) {
 
@@ -131,19 +183,28 @@ void write_th(int client_socket, int block_sz) {
     write(client_socket, &no_files, sizeof(no_files));
 
     while (!queue_empty(queue)) {
+        
+        // --------------------------------------------
+        pthread_mutex_lock(&queue_mutex);
+        pthread_cond_wait(&queue_empty);
 
         char *filename = pop(queue);
 
+        pthread_cond_signal(&queue_full);
+        pthread_mutex_unlock(&queue_mutex);
+        // --------------------------------------------
+
         // write the number of bytes of the filename to the socket
         int bytes_to_write = htons(strlen(filename));
-        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));      // race condition
 
         // write the filename from the queue
-        write(client_socket, filename, strlen(filename));
+        write(client_socket, filename, strlen(filename));                   // race condition
 
         send_file_content(filename, block_sz, client_socket);
     }
 }
+
 
 // given file, block_size and the client socket send file's data and contents to the client through socket
 // -------------------------------------------------------------------------------------------------------
@@ -168,53 +229,16 @@ void send_file_content(char* file, size_t block_sz, int client_socket) {
 
     // 1. Send metadata of file (it's total size in bytes)
     int file_sz = htonl(res);
-    write(client_socket, &file_sz, sizeof(file_sz));
+    write(client_socket, &file_sz, sizeof(file_sz));         // race condition
 
     // 2. Send contents of file (text data)
     while ((buff_sz = fread(buff, sizeof(char), block_sz, fp)) > 0) {       // read block by block, store in buff and return bytes read in buff_sz
         
         // send how many bytes of content the client will read
         int bytes_to_write = htons(buff_sz);
-        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));  // race condition
 
         // write the buff to the socket 
-        write(client_socket, buff, buff_sz);
+        write(client_socket, buff, buff_sz);            // race condition
     }
-}
-
-
-void get_dir_content(char * path) {
-
-    // open dir
-    DIR * d = opendir(path);
-    if (d == NULL) {
-        printf("No such dir in Server's hierarchy\n");
-        return;
-    }
-
-    struct dirent *dir;
-
-    while ((dir = readdir(d)) != NULL) {
-
-        if(dir-> d_type != DT_DIR) {                                // if the type is not directory just print it with blue color
-
-            char *path_to_file = calloc(BUFFSIZE, sizeof(char));
-            sprintf(path_to_file, "%s/%s", path, dir->d_name);
-
-            printf("Adding file %s to the queue...\n", path_to_file);
-            while(queue_full(queue));
-            push(queue, path_to_file);
-        }
-        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ) {    // it's directory
-
-            char subdir[BUFFSIZE];
-            sprintf(subdir, "%s/%s", path, dir->d_name);
-
-            // recursively show contents of subdir
-            get_dir_content(subdir);
-        }
-    }
-    
-    // close dir
-    closedir(d);
 }
