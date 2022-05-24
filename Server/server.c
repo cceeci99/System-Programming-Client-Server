@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+
+#include <unistd.h>
+
 #include <errno.h>
-#include <dirent.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
+#include <dirent.h>
+
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include "queue.h"

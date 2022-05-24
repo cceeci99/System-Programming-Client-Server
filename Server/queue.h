@@ -1,12 +1,12 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-struct queue_st {
+struct queue_st {       // a queue struct, containing capacity, size, front and rear and a char** array that stores the files
     int front, rear;
-    int size;
-    int capacity;
+    int size;           // size counts the number of files to be inserted
+    int capacity;       // capacity is the total MAX size of the queue (given from arguments to the server)
 
-    char** array;
+    char** array;       // store files (a file is of char*)
 };
 
 typedef struct queue_st *Queue;
