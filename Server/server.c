@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <errno.h>
 #include <dirent.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -38,11 +38,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    queue = create_queue(queue_sz);
-
     printf("Server's parameters are:\n");
     printf("Port: %d\n", port);
     printf("Queue size: %d\n", queue_sz);
+    printf("Block size: %d\n", block_sz);
+
+    queue = create_queue(queue_sz);
 
     // create socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);

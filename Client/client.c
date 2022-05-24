@@ -2,11 +2,16 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include <errno.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define BUFFSIZE 4096
+
+int create_dir(char *name);
+int create_file(char *name);
 
 int main(int argc, char *argv[]) {
 
@@ -78,9 +83,56 @@ int main(int argc, char *argv[]) {
         read(sock, filename, bytes_to_read);
 
         printf("Received file: %s\n", filename);
+
+        char* temp = strdup(filename);
+        char* token = strtok(temp, "/");
+        char* dir = malloc(strlen(token));
+        char* last = NULL;
+
+        while (token != NULL) {
+            
+            if (last != NULL) {
+                // construct each dir with it's relative path
+                dir = realloc(dir, strlen(dir) + strlen(last) + 1);
+                strcat(dir, last);
+                strcat(dir, "/");
+
+                create_dir(dir);
+            }
+
+            last = token;
+            token = strtok(NULL, "/");
+        }
+        
+        int fd = create_file(filename);
     }
 
     close(sock);
+
+    return 0;
+}
+
+int create_file(char *name) {
+
+    int fd = open(name, O_WRONLY | O_CREAT, 0777);
+    if (fd == -1) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+
+    return fd;
+}
+
+int create_dir(char *name) {
+    
+    // remove the last '/' character
+    char* dir = malloc(strlen(name)-1);
+    memcpy(dir, name, strlen(name)-1);
+
+    if (mkdir(dir, S_IRWXU) != 0 && errno != EEXIST) {
+        perror("mkdir");
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }
