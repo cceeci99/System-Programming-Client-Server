@@ -15,10 +15,14 @@
 
 #define BUFFSIZE 4096
 
+
 Queue queue;
 
+
 void get_dir_content(char * path);
+
 void send_file_content(char* fname, size_t block_sz, int client_socket);
+
 
 int main(int argc, char *argv[]) {
 
@@ -84,12 +88,12 @@ int main(int argc, char *argv[]) {
         
         printf("Accepted connection from localhost\n");
 
-        // bytes to read for the directory string
+        // read number of bytes for the directory string
         int bytes_to_read = 0;
         read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
         bytes_to_read = ntohs(bytes_to_read);
 
-        // read the desired directory's name from client
+        // read the desired directory from client
         char *dirname = calloc(bytes_to_read, sizeof(char));
         read(client_socket, dirname, bytes_to_read);
 
@@ -121,38 +125,39 @@ int main(int argc, char *argv[]) {
 }
 
 
-void send_file_content(char* fname, size_t block_sz, int client_socket) {
+// given file, block_size and the client socket send file's data and contents to the client through socket
+// -------------------------------------------------------------------------------------------------------
+void send_file_content(char* file, size_t block_sz, int client_socket) {
     
-    // allocate buffer to read from the file
-    char* buff = calloc(block_sz, sizeof(char));
-    size_t buff_sz;
-
-    FILE* fp = fopen(fname, "r");
+    FILE* fp = fopen(file, "r");
     if (fp == NULL) {
         perror("fopen");
         exit(EXIT_FAILURE);
     }
 
+    // allocate buffer to read from the file
+    char* buff = calloc(block_sz, sizeof(char));
+    size_t buff_sz;
+
     // find the size of the file in bytes
     fseek(fp, 0L, SEEK_END);
     long int res = ftell(fp);
-    printf("File size in bytes: %ld\n", res);
-
-    // send the size of the file to the client
-    int file_sz = htons(res);
-    write(client_socket, &file_sz, sizeof(file_sz));
 
     // reset file pointer to the beginning of the file
     fseek(fp, 0, SEEK_SET);
 
-    // read file block by block(with block_sz) and store it in buff
-    while ((buff_sz = fread(buff, sizeof(char), block_sz, fp)) > 0) {
+    // 1. Send metadata of file (it's total size in bytes)
+    int file_sz = htonl(res);
+    write(client_socket, &file_sz, sizeof(file_sz));
+
+    // 2. Send contents of file (text data)
+    while ((buff_sz = fread(buff, sizeof(char), block_sz, fp)) > 0) {       // read block by block, store in buff and return bytes read in buff_sz
         
-        // send how many bytes you gonna write to socket
+        // send how many bytes of content the client will read
         int bytes_to_write = htons(buff_sz);
         write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
 
-        // write the actual buffer to the socket
+        // write the buff to the socket 
         write(client_socket, buff, buff_sz);
     }
 }

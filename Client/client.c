@@ -134,7 +134,7 @@ void copy_file(FILE* fp, int socket) {
     // read the file size in bytes that are supposed to be copied
     int file_sz = 0;
     read(socket, &file_sz, sizeof(file_sz));
-    file_sz = ntohs(file_sz);
+    file_sz = ntohl(file_sz);
 
     printf("File size in bytes to copy: %d\n", file_sz);
 
