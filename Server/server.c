@@ -11,6 +11,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <pthread.h>
+
 #include "queue.h"
 
 #define BUFFSIZE 4096
@@ -23,6 +25,9 @@ void get_dir_content(char * path);
 
 void send_file_content(char* fname, size_t block_sz, int client_socket);
 
+void read_th(int client_socket);
+
+void write_th(int client_socket)
 
 int main(int argc, char *argv[]) {
 
@@ -87,35 +92,13 @@ int main(int argc, char *argv[]) {
         }
         
         printf("Accepted connection from localhost\n");
+        // --------------------------------------------- //
 
-        // read number of bytes for the directory string
-        int bytes_to_read = 0;
-        read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
-        bytes_to_read = ntohs(bytes_to_read);
-
-        // read the desired directory from client
-        char *dirname = calloc(bytes_to_read, sizeof(char));
-        read(client_socket, dirname, bytes_to_read);
-
-        // find contents of dir
-        get_dir_content(dirname);
-
-        // write the number of files that will be copied to client
-        int no_files = htons(queue->size);
-        write(client_socket, &no_files, sizeof(no_files));
-
-        while (!queue_empty(queue)) {
-
-            char *filename = pop(queue);
-
-            // write the number of bytes of the filename to the socket
-            int bytes_to_write = htons(strlen(filename));
-            write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
-
-            // write the filename from the queue
-            write(client_socket, filename, strlen(filename));
-
-            send_file_content(filename, block_sz, client_socket);
+        // create a communication thread
+        pthread_t receiver;
+        if (pthread_create(&receiver, NULL, read_th, client_socket) == -1) {
+            perror("pthread_create");
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -124,6 +107,43 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+
+void read_th(int client_socket) {
+
+    // read number of bytes for the directory string
+    int bytes_to_read = 0;
+    read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
+    bytes_to_read = ntohs(bytes_to_read);
+
+    // read the desired directory from client
+    char *dirname = calloc(bytes_to_read, sizeof(char));
+    read(client_socket, dirname, bytes_to_read);
+
+    // find contents of dir
+    get_dir_content(dirname);
+}
+
+
+void write_th(int client_socket, int block_sz) {
+
+    // write the number of files that will be copied to client
+    int no_files = htons(queue->size);
+    write(client_socket, &no_files, sizeof(no_files));
+
+    while (!queue_empty(queue)) {
+
+        char *filename = pop(queue);
+
+        // write the number of bytes of the filename to the socket
+        int bytes_to_write = htons(strlen(filename));
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
+
+        // write the filename from the queue
+        write(client_socket, filename, strlen(filename));
+
+        send_file_content(filename, block_sz, client_socket);
+    }
+}
 
 // given file, block_size and the client socket send file's data and contents to the client through socket
 // -------------------------------------------------------------------------------------------------------

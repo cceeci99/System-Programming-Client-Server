@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     read(sock, &no_files, sizeof(no_files));
     no_files = ntohs(no_files);
 
-    printf("no_files to copy: %d\n", no_files);
+    // printf("no_files to copy: %d\n", no_files);
 
     // Receiving Files ...
     // --------------------
@@ -136,7 +136,7 @@ void copy_file(FILE* fp, int socket) {
     read(socket, &file_sz, sizeof(file_sz));
     file_sz = ntohl(file_sz);
 
-    printf("File size in bytes to copy: %d\n", file_sz);
+    // printf("File size in bytes to copy: %d\n", file_sz);
 
     int total_bytes_copied = 0;
 
@@ -160,7 +160,7 @@ void copy_file(FILE* fp, int socket) {
         total_bytes_copied += block_bytes;
     }
 
-    printf("Total bytes copied: %d\n", total_bytes_copied);
+    // printf("Total bytes copied: %d\n", total_bytes_copied);
 }
 
 
