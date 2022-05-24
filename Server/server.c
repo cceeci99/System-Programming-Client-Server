@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
         // bytes to read for the directory string
         int bytes_to_read = 0;
         read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
-        bytes_to_read = ntohl(bytes_to_read);
+        bytes_to_read = ntohs(bytes_to_read);
 
         // read the desired directory's name from client
         char *dirname = calloc(bytes_to_read, sizeof(char));
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
         get_dir_content(dirname);
 
         // write the number of files that will be copied to client
-        int no_files = htonl(queue->size);
+        int no_files = htons(queue->size);
         write(client_socket, &no_files, sizeof(no_files));
 
         while (!queue_empty(queue)) {
@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
             char *filename = pop(queue);
 
             // write the number of bytes of the filename to the socket
-            int bytes_to_write = htonl(strlen(filename));
+            int bytes_to_write = htons(strlen(filename));
             write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
 
             // write the filename from the queue
@@ -136,7 +136,7 @@ void send_file_content(char* fname, size_t block_sz, int client_socket) {
     printf("File size in bytes: %ld\n", res);
 
     // send the size of the file to the client
-    int file_sz = htonl(res);
+    int file_sz = htons(res);
     write(client_socket, &file_sz, sizeof(file_sz));
 
     // reset file pointer to the beginning of the file
@@ -146,7 +146,7 @@ void send_file_content(char* fname, size_t block_sz, int client_socket) {
     while ((buff_sz = fread(buff, sizeof(char), block_sz, fp)) > 0) {
         
         // send how many bytes you gonna write to socket
-        int bytes_to_write = htonl(buff_sz);
+        int bytes_to_write = htons(buff_sz);
         write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
 
         // write the actual buffer to the socket
@@ -174,6 +174,7 @@ void get_dir_content(char * path) {
             sprintf(path_to_file, "%s/%s", path, dir->d_name);
 
             printf("Adding file %s to the queue...\n", path_to_file);
+            while(queue_full(queue));
             push(queue, path_to_file);
         }
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ) {    // it's directory

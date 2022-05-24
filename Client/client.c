@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     printf("Connecting to %s on port %d\n", serverIP, port);
     
     // send to server how many bytes he will read for the directory name
-    int bytes_to_write = htonl(strlen(dir));
+    int bytes_to_write = htons(strlen(dir));
     write(sock, &bytes_to_write, sizeof(bytes_to_write));
 
     // write the directory to the socket
@@ -70,14 +70,16 @@ int main(int argc, char *argv[]) {
     // read the number of files that are gonna be copied
     int no_files = 0;
     read(sock, &no_files, sizeof(no_files));
-    no_files = ntohl(no_files);
+    no_files = ntohs(no_files);
+
+    // printf("no_files to copy: %d\n", no_files);
 
     for (int i=0; i<no_files; i++) {
 
         // read the number of byte for the filename
         int bytes_to_read = 0;
         read(sock, &bytes_to_read, sizeof(bytes_to_read));
-        bytes_to_read = ntohl(bytes_to_read);
+        bytes_to_read = ntohs(bytes_to_read);
 
         // read the filename
         char* filename = calloc(bytes_to_read, sizeof(char));
@@ -109,7 +111,6 @@ int main(int argc, char *argv[]) {
         FILE* fp = create_file(filename);     // create the given file
 
         copy_file(fp, sock);
-       
     }
 
     close(sock);
@@ -122,9 +123,9 @@ void copy_file(FILE* fp, int socket) {
 
     int file_sz = 0;
     read(socket, &file_sz, sizeof(file_sz));
-    file_sz = ntohl(file_sz);
+    file_sz = ntohs(file_sz);
 
-    printf("File size to copy: %d\n", file_sz);
+    // printf("File size in bytes to copy: %d\n", file_sz);
 
     int total_bytes_copied = 0;
 
@@ -133,7 +134,7 @@ void copy_file(FILE* fp, int socket) {
         // read number of bytes per block to read
         int block_bytes = 0;
         read(socket, &block_bytes, sizeof(block_bytes));
-        block_bytes = ntohl(block_bytes);
+        block_bytes = ntohs(block_bytes);
 
         char* block = calloc(block_bytes, sizeof(char));
         read(socket, block, block_bytes);
@@ -143,6 +144,8 @@ void copy_file(FILE* fp, int socket) {
 
         total_bytes_copied += block_bytes;
     }
+
+    // printf("Total bytes copied: %d\n", total_bytes_copied);
 }
 
 
