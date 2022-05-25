@@ -201,29 +201,7 @@ void get_dir_content(char *path, int client_socket) {
 }
 
 
-void count_files(char *path, int* total_files) {
-
-    DIR * d = opendir(path);
-    if (d == NULL) {
-        printf("No such dir in Server's hierarchy\n");
-        return;
-    }
-
-    struct dirent *dir;
-    while ((dir = readdir(d)) != NULL) {
-
-        if(dir-> d_type != DT_DIR) {                                // if the type is not directory just print it with blue color
-            *total_files = *total_files + 1;
-        }
-        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
-            char subdir[BUFFSIZE];
-            sprintf(subdir, "%s/%s", path, dir->d_name);
-            count_files(subdir, total_files);
-        }
-    }
-    closedir(d);
-}
-
+void count_files(char *path, int* total_files);
 
 void* read_th(void* arg) {      // args: client_socket
 
@@ -250,7 +228,6 @@ void* read_th(void* arg) {      // args: client_socket
     // find contents of dir
     get_dir_content(dirname, client_socket);
 }
-
 
 
 void send_file_content(char* file, int client_socket);
@@ -338,4 +315,28 @@ void send_file_content(char* file, int client_socket) {
         // write the buff to the socket 
         write(client_socket, buff, buff_sz);
     }
+}
+
+
+void count_files(char *path, int* total_files) {
+
+    DIR * d = opendir(path);
+    if (d == NULL) {
+        printf("No such dir in Server's hierarchy\n");
+        return;
+    }
+
+    struct dirent *dir;
+    while ((dir = readdir(d)) != NULL) {
+
+        if(dir-> d_type != DT_DIR) {                                // if the type is not directory just print it with blue color
+            *total_files = *total_files + 1;
+        }
+        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
+            char subdir[BUFFSIZE];
+            sprintf(subdir, "%s/%s", path, dir->d_name);
+            count_files(subdir, total_files);
+        }
+    }
+    closedir(d);
 }
