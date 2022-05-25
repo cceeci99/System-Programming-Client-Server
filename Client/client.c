@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     read(sock, &no_files, sizeof(no_files));
     no_files = ntohs(no_files);
 
-    // printf("no_files to copy: %d\n", no_files);
+    printf("no_files to copy: %d\n", no_files);
 
     // Receiving Files ...
     // --------------------

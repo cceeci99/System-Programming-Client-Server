@@ -17,25 +17,30 @@
 
 #define BUFFSIZE 4096
 
+int block_sz;
 
 Queue queue;
 
-pthread_mutex_t queue_mutex;
-pthread_cond_t queue_full;
-pthread_cond_t queue_empty;
+// --------------------------------
 
-void get_dir_content(char * path);
+// pthread_mutex_t work_mutex;
+// pthread_mutex_t queue_mutex;
+// pthread_cond_t queue_full_cond;
+// pthread_cond_t queue_empty_cond;
 
-void send_file_content(char* fname, size_t block_sz, int client_socket);
+// void* read_th(void* args);
+// void* write_th(void* args);
 
-void read_th(int client_socket);
+// --------------------------------
 
-void write_th(int client_socket)
+void get_dir_content(char * path, int client_socket);
+void send_file_content(char* file,  int client_socket);
+
 
 int main(int argc, char *argv[]) {
 
     // arguments
-    int port, block_sz, queue_sz, pool_sz;
+    int port, queue_sz, pool_sz;
 
     for (int i=1; i<argc; i++) {
         
@@ -57,14 +62,15 @@ int main(int argc, char *argv[]) {
     printf("Port: %d\n", port);
     printf("Queue size: %d\n", queue_sz);
     printf("Block size: %d\n", block_sz);
+    printf("Thread pool size: %d\n", pool_sz);
 
     queue = create_queue(queue_sz);
 
     // create socket
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
     int val=1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
     
     // specify an address for the socket
     struct sockaddr_in server_addr;
@@ -73,26 +79,32 @@ int main(int argc, char *argv[]) {
     server_addr.sin_addr.s_addr =  INADDR_ANY;
 
     // bind socket to specified IP, PORT
-    int b = bind(sock, (struct sockaddr*) &server_addr, sizeof(server_addr));
+    int b = bind(server_socket, (struct sockaddr*) &server_addr, sizeof(server_addr));
     if (b == -1) {
         perror("bind");
         exit(EXIT_FAILURE);
     }
 
     // listen for requests
-    listen(sock, 5);
+    listen(server_socket, 5);
     printf("Listening for connection on port: %d...\n", port);
 
-    pthread_mutex_init(&queue_mutex, NULL);
-    pthread_cond_init(&queue_empty, NULL);
-    pthread_cond_init(&queue_full, NULL);
+    // pthread_mutex_init(&work_mutex, NULL);
+    // pthread_mutex_init(&queue_mutex, NULL);
+    // pthread_cond_init(&queue_empty_cond, NULL);
+    // pthread_cond_init(&queue_full_cond, NULL);
+
+    // pthread_t worker_thread;
+    // for (int i=0; i<pool_sz; i++) {
+    //     pthread_create(&worker_thread, NULL, &write_th, NULL);
+    // }
 
     while (1) {
 
         struct sockaddr_in client_addr;
         socklen_t addr_size;
 
-        int client_socket = accept(sock, (struct sockaddr*) &client_addr, &addr_size);
+        int client_socket = accept(server_socket, (struct sockaddr*) &client_addr, &addr_size);
         if (client_socket == -1) {
             perror("accept");
             exit(EXIT_FAILURE);
@@ -102,20 +114,72 @@ int main(int argc, char *argv[]) {
         // --------------------------------------------- //
 
         // create a communication thread
-        pthread_t receiver;
-        if (pthread_create(&receiver, NULL, read_th, client_socket) == -1) {
-            perror("pthread_create");
-            exit(EXIT_FAILURE);
+        // pthread_t receiver;
+        // if (pthread_create(&receiver, NULL, &read_th, &client_socket) == -1) {
+        //     perror("pthread_create");
+        //     exit(EXIT_FAILURE);
+        // }
+
+        // ------------ RECEIVING DATA  ----------------- //
+
+        // read number of bytes for the directory string
+        int bytes_to_read = 0;
+        read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
+        bytes_to_read = ntohs(bytes_to_read);
+
+        // read the desired directory from client
+        char *dirname = calloc(bytes_to_read, sizeof(char));
+        read(client_socket, dirname, bytes_to_read);
+
+        // find contents of dir
+        get_dir_content(dirname, client_socket);
+
+        // write the number of files that will be copied to client
+        int no_files = htons(queue->size);
+        write(client_socket, &no_files, sizeof(no_files));
+
+        // --------------------------------
+
+        // SENDING DATA
+        while (!queue_empty(queue)) {
+        
+            // --------------------------------------------
+            // pthread_mutex_lock(&queue_mutex);
+            // pthread_cond_wait(&queue_empty_cond, &queue_mutex);
+
+            q_data dt = pop(queue);
+            char* filename = dt->file;
+            int client_socket_fd = dt->socket;
+
+            printf("Received task: <%s, %d>\n", filename, client_socket_fd);
+
+            // pthread_cond_signal(&queue_full_cond);
+            // pthread_mutex_unlock(&queue_mutex);
+            // --------------------------------------------
+
+            // write the number of bytes of the filename to the socket
+            int bytes_to_write = htons(strlen(filename));
+            write(client_socket_fd, &bytes_to_write, sizeof(bytes_to_write));      // race condition
+
+            // write the filename from the queue
+            write(client_socket_fd, filename, strlen(filename));                   // race condition
+
+            send_file_content(filename, client_socket_fd);
         }
     }
 
-    close(sock);
+    close(server_socket);
 
     return 0;
 }
 
+/*
+void* read_th(void* arg) {      // args: client_socket
 
-void read_th(int client_socket) {
+    int client_socket = *(int*)arg;
+    printf("Client socket %d\n", client_socket);
+
+    printf("Thread: %ld\n", pthread_self());
 
     // read number of bytes for the directory string
     int bytes_to_read = 0;
@@ -128,9 +192,13 @@ void read_th(int client_socket) {
 
     // find contents of dir
     get_dir_content(dirname);
-}
 
-void get_dir_content(char * path) {
+    // write the number of files that will be copied to client
+    int no_files = htons(queue->size);
+    write(client_socket, &no_files, sizeof(no_files));
+} */
+
+void get_dir_content(char *path, int client_socket) {
 
     // open dir
     DIR * d = opendir(path);
@@ -151,13 +219,13 @@ void get_dir_content(char * path) {
             printf("Adding file %s to the queue...\n", path_to_file);
 
             // --------------------------------------------
-            pthread_mutex_lock(&queue_mutex);
-            pthread_cond_wait(&queue_full, &queue_mutex);
+            // pthread_mutex_lock(&queue_mutex);
+            // pthread_cond_wait(&queue_full_cond, &queue_mutex);
 
-            push(queue, path_to_file);
+            push(queue, path_to_file, client_socket);
             
-            pthread_cond_signal(&queue_empty);
-            pthread_mutex_unlock(&queue_mutex);
+            // pthread_cond_signal(&queue_empty_cond);
+            // pthread_mutex_unlock(&queue_mutex);
             // --------------------------------------------
         
         }
@@ -167,7 +235,7 @@ void get_dir_content(char * path) {
             sprintf(subdir, "%s/%s", path, dir->d_name);
 
             // recursively show contents of subdir
-            get_dir_content(subdir);
+            get_dir_content(subdir, client_socket);
         }
     }
     
@@ -175,22 +243,20 @@ void get_dir_content(char * path) {
     closedir(d);
 }
 
+/*
+void* write_th(void* args) {        // arguments: client_socket, block_sz
 
-void write_th(int client_socket, int block_sz) {
-
-    // write the number of files that will be copied to client
-    int no_files = htons(queue->size);
-    write(client_socket, &no_files, sizeof(no_files));
+    printf("Thread: %ld\n", pthread_self());
 
     while (!queue_empty(queue)) {
         
         // --------------------------------------------
         pthread_mutex_lock(&queue_mutex);
-        pthread_cond_wait(&queue_empty);
+        pthread_cond_wait(&queue_empty_cond, &queue_mutex);
 
-        char *filename = pop(queue);
+        char *filename = pop(queue);        ////////
 
-        pthread_cond_signal(&queue_full);
+        pthread_cond_signal(&queue_full_cond);
         pthread_mutex_unlock(&queue_mutex);
         // --------------------------------------------
 
@@ -201,14 +267,14 @@ void write_th(int client_socket, int block_sz) {
         // write the filename from the queue
         write(client_socket, filename, strlen(filename));                   // race condition
 
-        send_file_content(filename, block_sz, client_socket);
+        send_file_content(filename, client_socket);
     }
-}
+} */
 
 
 // given file, block_size and the client socket send file's data and contents to the client through socket
 // -------------------------------------------------------------------------------------------------------
-void send_file_content(char* file, size_t block_sz, int client_socket) {
+void send_file_content(char* file, int client_socket) {
     
     FILE* fp = fopen(file, "r");
     if (fp == NULL) {
