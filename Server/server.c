@@ -21,7 +21,6 @@ int block_sz;   // global, avoid passing many arguments to threads
 
 Queue queue;    // global shared variable to all threads
 
-
 pthread_mutex_t work_mutex;
 pthread_mutex_t queue_mutex;
 pthread_cond_t queue_full_cond;
@@ -29,12 +28,6 @@ pthread_cond_t queue_empty_cond;
 
 void* read_th(void* args);
 void* write_th(void* args);
-
-// get directory's contents and push <filename, socket_fd> to the queue
-void get_dir_content(char *path, int client_socket);
-
-// send file's contents to specified client
-void send_file_content(char* file,  int client_socket);
 
 
 int main(int argc, char *argv[]) {
@@ -126,30 +119,9 @@ int main(int argc, char *argv[]) {
 }
 
 
-void* read_th(void* arg) {      // args: client_socket
 
-    int client_socket = *(int*)arg;
-
-    // read number of bytes for the directory string
-    int bytes_to_read = 0;
-    read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
-    bytes_to_read = ntohs(bytes_to_read);
-
-    // read the desired directory from client
-    char *dirname = calloc(bytes_to_read, sizeof(char));
-    read(client_socket, dirname, bytes_to_read);
-
-    printf("[Thread: %ld]: About to scan directory:%s\n", pthread_self(), dirname);
-
-    // find contents of dir
-    get_dir_content(dirname, client_socket);
-
-    // write the number of files that will be copied to client
-    int no_files = htons(queue->size);
-    write(client_socket, &no_files, sizeof(no_files));      // race condition
-}
-
-
+// get directory's contents and push <filename, socket_fd> to the queue
+// -------------------------------------------------------------------
 void get_dir_content(char *path, int client_socket) {
 
     // open dir
@@ -170,7 +142,12 @@ void get_dir_content(char *path, int client_socket) {
 
             // --------------------------------------------
             pthread_mutex_lock(&queue_mutex);
-            pthread_cond_wait(&queue_full_cond, &queue_mutex);
+            printf("Thread: %ld Locked the mutex\n", pthread_self());
+
+            if (queue_full(queue)) {
+                pthread_cond_wait(&queue_full_cond, &queue_mutex);
+                printf("Thread: %ld waiting on cond\n", pthread_self());
+            }
 
             printf("[Thread: %ld]: Adding file %s to the queue...\n", pthread_self(), path_to_file);
 
@@ -194,38 +171,34 @@ void get_dir_content(char *path, int client_socket) {
 }
 
 
-void* write_th(void* args) {        // arguments: client_socket, block_sz
+void* read_th(void* arg) {      // args: client_socket
 
-    while (!queue_empty(queue)) {
-        
-        // --------------------------------------------
-        pthread_mutex_lock(&queue_mutex);
-        pthread_cond_wait(&queue_empty_cond, &queue_mutex);
+    int client_socket = *(int*)arg;
 
-        q_data dt = pop(queue);
-        char* filename = dt->file;
-        int client_socket = dt->socket;
+    // read number of bytes for the directory string
+    int bytes_to_read = 0;
+    read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
+    bytes_to_read = ntohs(bytes_to_read);
 
-        printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+    // read the desired directory from client
+    char *dirname = calloc(bytes_to_read, sizeof(char));
+    read(client_socket, dirname, bytes_to_read);
 
-        pthread_cond_signal(&queue_full_cond);
-        pthread_mutex_unlock(&queue_mutex);
-        // --------------------------------------------
+    printf("[Thread: %ld]: About to scan directory:%s\n", pthread_self(), dirname);
 
-        // write the number of bytes of the filename to the socket
-        int bytes_to_write = htons(strlen(filename));
-        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));      // race condition
+    // find contents of dir
+    get_dir_content(dirname, client_socket);
 
-        // write the filename from the queue
-        write(client_socket, filename, strlen(filename));                   // race condition
+    // write the number of files that will be copied to client
+    int no_files = htons(queue->size);
+    write(client_socket, &no_files, sizeof(no_files));      // race condition
 
-        send_file_content(filename, client_socket);
-    }
+    pthread_exit(NULL);
 }
 
 
-// given file, block_size and the client socket send file's data and contents to the client through socket
-// -------------------------------------------------------------------------------------------------------
+// send file's contents to specified client
+// ----------------------------------------
 void send_file_content(char* file, int client_socket) {
     
     FILE* fp = fopen(file, "r");
@@ -258,5 +231,41 @@ void send_file_content(char* file, int client_socket) {
 
         // write the buff to the socket 
         write(client_socket, buff, buff_sz);            // race condition
+    }
+}
+
+
+void* write_th(void* args) {        // arguments: client_socket, block_sz
+
+    while (!queue_empty(queue)) {
+        pthread_mutex_lock(&queue_mutex);
+        printf("Thread: %ld Locked the mutex\n", pthread_self());
+
+        if (queue_empty(queue)) {
+            pthread_cond_wait(&queue_empty_cond, &queue_mutex);
+            printf("Thread: %ld waiting on cond\n", pthread_self());
+        }
+    
+        q_data dt = pop(queue);
+
+        pthread_cond_signal(&queue_full_cond);
+        pthread_mutex_unlock(&queue_mutex);
+        
+        char* filename = dt->file;
+        int client_socket = dt->socket;
+
+
+        printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+
+        // write the number of bytes of the filename to the socket
+        int bytes_to_write = htons(strlen(filename));
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));      // race condition
+
+        // write the filename from the queue
+        write(client_socket, filename, strlen(filename));                   // race condition
+
+        send_file_content(filename, client_socket);
+
+        pthread_exit(NULL);
     }
 }

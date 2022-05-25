@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     read(sock, &no_files, sizeof(no_files));
     no_files = ntohs(no_files);
 
-    printf("no_files to copy: %d\n", no_files);
+    printf("%d files to copy\n", no_files);
 
     // Receiving Files ...
     // --------------------
@@ -124,7 +124,6 @@ int main(int argc, char *argv[]) {
 }
 
 
-
 // copy contents of file that are passed from server through the socket to local file with FILE pointer fp
 // -------------------------------------------------------------------------------------------------------
 void copy_file(FILE* fp, int socket) {
@@ -164,7 +163,6 @@ void copy_file(FILE* fp, int socket) {
 }
 
 
-
 // return 1 if given file exists or 0
 // ----------------------------------
 int file_exists(char *filename) {
@@ -172,7 +170,6 @@ int file_exists(char *filename) {
     struct stat   buffer;   
     return (stat (filename, &buffer) == 0);
 }
-
 
 
 // create directory with given name
@@ -190,7 +187,6 @@ int create_dir(char *name) {
 
     return 0;
 }
-
 
 
 // create/open file with given name and return FILE pointer
