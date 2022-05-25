@@ -143,7 +143,7 @@ void get_dir_content(char *path, int client_socket) {
 
             // --------------------------------------------
             pthread_mutex_lock(&queue_mutex);
-            printf("Thread: %ld Locked the mutex\n", pthread_self());
+            // printf("Thread: %ld Locked the mutex\n", pthread_self());
 
             if (queue_full(queue)) {
                 pthread_cond_wait(&queue_full_cond, &queue_mutex);
@@ -264,8 +264,9 @@ void send_file_content(char* file, int client_socket) {
 void* write_th(void* args) {        // arguments: client_socket, block_sz
 
     while (1) {
+
         pthread_mutex_lock(&queue_mutex);
-        printf("Thread: %ld Locked the mutex\n", pthread_self());
+        // printf("Thread: %ld Locked the mutex\n", pthread_self());
 
         if (queue_empty(queue)) {
             pthread_cond_wait(&queue_empty_cond, &queue_mutex);
@@ -273,11 +274,17 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         }
     
         q_data dt = pop(queue);
+
+        pthread_cond_signal(&queue_full_cond);
+        pthread_mutex_unlock(&queue_mutex);
         
         char* filename = dt->file;
         int client_socket = dt->socket;
 
         printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+
+        pthread_mutex_lock(&work_mutex);
+        // -----------------------------
 
         // write the number of bytes of the filename to the socket
         int bytes_to_write = htons(strlen(filename));
@@ -288,7 +295,7 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
 
         send_file_content(filename, client_socket);
 
-        pthread_cond_signal(&queue_full_cond);
-        pthread_mutex_unlock(&queue_mutex);
+        // -------------------------------
+        pthread_mutex_unlock(&work_mutex);
     }
 }

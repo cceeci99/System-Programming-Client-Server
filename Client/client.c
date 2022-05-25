@@ -76,6 +76,11 @@ int main(int argc, char *argv[]) {
 
     // Receiving Files ...
     // --------------------
+
+    // char *result_dir = malloc(100);
+    // sprintf(result_dir, "client_%d/", getpid());
+    // mkdir(result_dir, S_IRWXU);
+
     for (int i=0; i<no_files; i++) {
 
         // 1. read the number of byte for the filename
@@ -104,13 +109,23 @@ int main(int argc, char *argv[]) {
                 strcat(dir, last);
                 strcat(dir, "/");
 
+                // char *d = malloc(strlen(dir) + strlen(result_dir));
+                // strcat(d, result_dir);
+                // strcat(d, dir);
+
                 create_dir(dir);
             }
 
             last = token;
             token = strtok(NULL, "/");
         }
-        
+
+        // char *t = "./";
+        // char *f = malloc(strlen(filename) + strlen(result_dir) + strlen(t));
+        // strcat(f, t);
+        // strcat(f, result_dir);
+        // strcat(f, filename);
+
         // 4. create file
         FILE* fp = create_file(filename);
         

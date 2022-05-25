@@ -1,0 +1,1 @@
+rm -rf bar && rm -rf boo & rm -rf foof

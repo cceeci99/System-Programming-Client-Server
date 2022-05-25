@@ -1,0 +1,1 @@
+./client -p 5200 -i 195.134.65.88 -d bar && ./client -p 5200 -i 195.134.65.88 -d boo && ./client -p 5200 -i 195.134.65.88 -d foof
