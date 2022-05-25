@@ -1,0 +1,46 @@
+        // ------------ RECEIVING DATA  ----------------- //
+
+        // // read number of bytes for the directory string
+        // int bytes_to_read = 0;
+        // read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
+        // bytes_to_read = ntohs(bytes_to_read);
+
+        // // read the desired directory from client
+        // char *dirname = calloc(bytes_to_read, sizeof(char));
+        // read(client_socket, dirname, bytes_to_read);
+
+        // // find contents of dir
+        // get_dir_content(dirname, client_socket);
+
+        // // write the number of files that will be copied to client
+        // int no_files = htons(queue->size);
+        // write(client_socket, &no_files, sizeof(no_files));
+
+        // --------------------------------
+
+        // // SENDING DATA
+        // while (!queue_empty(queue)) {
+        
+        //     // --------------------------------------------
+        //     // pthread_mutex_lock(&queue_mutex);
+        //     // pthread_cond_wait(&queue_empty_cond, &queue_mutex);
+
+        //     q_data dt = pop(queue);
+        //     char* filename = dt->file;
+        //     int client_socket_fd = dt->socket;
+
+        //     printf("Received task: <%s, %d>\n", filename, client_socket_fd);
+
+        //     // pthread_cond_signal(&queue_full_cond);
+        //     // pthread_mutex_unlock(&queue_mutex);
+        //     // --------------------------------------------
+
+        //     // write the number of bytes of the filename to the socket
+        //     int bytes_to_write = htons(strlen(filename));
+        //     write(client_socket_fd, &bytes_to_write, sizeof(bytes_to_write));      // race condition
+
+        //     // write the filename from the queue
+        //     write(client_socket_fd, filename, strlen(filename));                   // race condition
+
+        //     send_file_content(filename, client_socket_fd);
+        // }
