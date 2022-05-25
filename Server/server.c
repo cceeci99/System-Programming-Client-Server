@@ -29,6 +29,7 @@ pthread_cond_t queue_empty_cond;
 void* read_th(void* args);
 void* write_th(void* args);
 
+void count_files(char *path, int *total_files);
 
 int main(int argc, char *argv[]) {
 
@@ -157,7 +158,7 @@ void get_dir_content(char *path, int client_socket) {
             pthread_mutex_unlock(&queue_mutex);
             // --------------------------------------------
         }
-        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ) {    // it's directory
+        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
 
             char subdir[BUFFSIZE];
             sprintf(subdir, "%s/%s", path, dir->d_name);
@@ -167,6 +168,30 @@ void get_dir_content(char *path, int client_socket) {
         }
     }
     
+    closedir(d);
+}
+
+
+void count_files(char *path, int* total_files) {
+
+    DIR * d = opendir(path);
+    if (d == NULL) {
+        printf("No such dir in Server's hierarchy\n");
+        return;
+    }
+
+    struct dirent *dir;
+    while ((dir = readdir(d)) != NULL) {
+
+        if(dir-> d_type != DT_DIR) {                                // if the type is not directory just print it with blue color
+            *total_files = *total_files + 1;
+        }
+        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
+            char subdir[BUFFSIZE];
+            sprintf(subdir, "%s/%s", path, dir->d_name);
+            count_files(subdir, total_files);
+        }
+    }
     closedir(d);
 }
 
@@ -185,15 +210,16 @@ void* read_th(void* arg) {      // args: client_socket
     read(client_socket, dirname, bytes_to_read);
 
     printf("[Thread: %ld]: About to scan directory:%s\n", pthread_self(), dirname);
+    
+    int total_files = 0;
+    count_files(dirname, &total_files);
+    
+    // write the number of files that will be copied to client
+    int no_files = htons(total_files);
+    write(client_socket, &no_files, sizeof(no_files));
 
     // find contents of dir
     get_dir_content(dirname, client_socket);
-
-    // write the number of files that will be copied to client
-    int no_files = htons(queue->size);
-    write(client_socket, &no_files, sizeof(no_files));      // race condition
-
-    pthread_exit(NULL);
 }
 
 
@@ -237,7 +263,7 @@ void send_file_content(char* file, int client_socket) {
 
 void* write_th(void* args) {        // arguments: client_socket, block_sz
 
-    while (!queue_empty(queue)) {
+    while (1) {
         pthread_mutex_lock(&queue_mutex);
         printf("Thread: %ld Locked the mutex\n", pthread_self());
 
@@ -247,13 +273,9 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         }
     
         q_data dt = pop(queue);
-
-        pthread_cond_signal(&queue_full_cond);
-        pthread_mutex_unlock(&queue_mutex);
         
         char* filename = dt->file;
         int client_socket = dt->socket;
-
 
         printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
 
@@ -266,6 +288,7 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
 
         send_file_content(filename, client_socket);
 
-        pthread_exit(NULL);
+        pthread_cond_signal(&queue_full_cond);
+        pthread_mutex_unlock(&queue_mutex);
     }
 }
