@@ -21,7 +21,18 @@ int block_sz;   // global, avoid passing many arguments to threads
 
 Queue queue;    // global shared variable to all threads
 
-pthread_mutex_t work_mutex;
+
+struct client_mutex {
+    pthread_mutex_t mutex;
+    int socket;
+};
+
+typedef struct client_mutex *client_mutx;
+
+int mutexes_capacity = 10;
+int mutexes_size = 0;
+client_mutx *mutexes;
+
 pthread_mutex_t queue_mutex;
 pthread_cond_t queue_full_cond;
 pthread_cond_t queue_empty_cond;
@@ -83,7 +94,11 @@ int main(int argc, char *argv[]) {
     listen(server_socket, 5);
     printf("Listening for connection on port: %d...\n", port);
 
-    pthread_mutex_init(&work_mutex, NULL);
+    mutexes = malloc(mutexes_capacity*sizeof(client_mutx));
+    for (int i=0; i<mutexes_capacity; i++) {
+        mutexes[i] = malloc(sizeof(struct client_mutex));
+    }
+
     pthread_mutex_init(&queue_mutex, NULL);
     pthread_cond_init(&queue_empty_cond, NULL);
     pthread_cond_init(&queue_full_cond, NULL);
@@ -105,6 +120,20 @@ int main(int argc, char *argv[]) {
         }
         
         printf("Accepted connection from localhost\n");
+
+        // --------------------------------------
+        if (mutexes_size >= mutexes_capacity) {
+            mutexes_capacity *= 2;
+            mutexes = realloc(mutexes, mutexes_capacity*sizeof(client_mutx));
+            for (int i=mutexes_size; i<mutexes_capacity; i++) {
+                mutexes[i] = malloc(sizeof(struct client_mutex));
+            }
+        }
+
+        mutexes[mutexes_size]->socket = client_socket;
+        pthread_mutex_init(&(mutexes[mutexes_size]->mutex), NULL);
+        mutexes_size++;
+        // --------------------------------------
 
         // create a communication thread
         pthread_t receiver;
@@ -147,7 +176,7 @@ void get_dir_content(char *path, int client_socket) {
 
             if (queue_full(queue)) {
                 pthread_cond_wait(&queue_full_cond, &queue_mutex);
-                printf("Thread: %ld waiting on cond\n", pthread_self());
+                // printf("Thread: %ld waiting on cond\n", pthread_self());
             }
 
             printf("[Thread: %ld]: Adding file %s to the queue...\n", pthread_self(), path_to_file);
@@ -223,6 +252,57 @@ void* read_th(void* arg) {      // args: client_socket
 }
 
 
+
+void send_file_content(char* file, int client_socket);
+
+void* write_th(void* args) {        // arguments: client_socket, block_sz
+
+    while (1) {
+
+        pthread_mutex_lock(&queue_mutex);
+        // printf("Thread: %ld Locked the mutex\n", pthread_self());
+
+        if (queue_empty(queue)) {
+            pthread_cond_wait(&queue_empty_cond, &queue_mutex);
+            // printf("Thread: %ld waiting on cond\n", pthread_self());
+        }
+    
+        q_data dt = pop(queue);
+
+        pthread_cond_signal(&queue_full_cond);
+        pthread_mutex_unlock(&queue_mutex);
+        
+        char* filename = dt->file;
+        int client_socket = dt->socket;
+
+        printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+
+        int i;
+        for (i=0; i<mutexes_size; i++) {
+            if (mutexes[i]->socket == client_socket) {
+                break;
+            }
+        }
+
+        pthread_mutex_lock(&mutexes[i]->mutex);
+        // -----------------------------
+
+        // 1. send number of bytes for the filename
+        int bytes_to_write = htons(strlen(filename));
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));      // race condition
+
+        // 2. send the filename
+        write(client_socket, filename, strlen(filename));                   // race condition
+
+        // 3. send file contents
+        send_file_content(filename, client_socket);
+
+        // -------------------------------
+        pthread_mutex_unlock(&mutexes[i]->mutex);
+    }
+}
+
+
 // send file's contents to specified client
 // ----------------------------------------
 void send_file_content(char* file, int client_socket) {
@@ -246,56 +326,16 @@ void send_file_content(char* file, int client_socket) {
 
     // 1. Send metadata of file (it's total size in bytes)
     int file_sz = htonl(res);
-    write(client_socket, &file_sz, sizeof(file_sz));         // race condition
+    write(client_socket, &file_sz, sizeof(file_sz));
 
     // 2. Send contents of file (text data)
     while ((buff_sz = fread(buff, sizeof(char), block_sz, fp)) > 0) {       // read block by block, store in buff and return bytes read in buff_sz
         
         // send how many bytes of content the client will read
         int bytes_to_write = htons(buff_sz);
-        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));  // race condition
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
 
         // write the buff to the socket 
-        write(client_socket, buff, buff_sz);            // race condition
-    }
-}
-
-
-void* write_th(void* args) {        // arguments: client_socket, block_sz
-
-    while (1) {
-
-        pthread_mutex_lock(&queue_mutex);
-        // printf("Thread: %ld Locked the mutex\n", pthread_self());
-
-        if (queue_empty(queue)) {
-            pthread_cond_wait(&queue_empty_cond, &queue_mutex);
-            printf("Thread: %ld waiting on cond\n", pthread_self());
-        }
-    
-        q_data dt = pop(queue);
-
-        pthread_cond_signal(&queue_full_cond);
-        pthread_mutex_unlock(&queue_mutex);
-        
-        char* filename = dt->file;
-        int client_socket = dt->socket;
-
-        printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
-
-        pthread_mutex_lock(&work_mutex);
-        // -----------------------------
-
-        // write the number of bytes of the filename to the socket
-        int bytes_to_write = htons(strlen(filename));
-        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));      // race condition
-
-        // write the filename from the queue
-        write(client_socket, filename, strlen(filename));                   // race condition
-
-        send_file_content(filename, client_socket);
-
-        // -------------------------------
-        pthread_mutex_unlock(&work_mutex);
+        write(client_socket, buff, buff_sz);
     }
 }
