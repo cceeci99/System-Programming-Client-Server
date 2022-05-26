@@ -23,7 +23,7 @@ typedef struct queue_struct *Queue;
 
 Queue create_queue(int capacity);
 
-// void delete_queue(Queue q);
+void delete_queue(Queue q);
 
 int queue_empty(Queue q);
 

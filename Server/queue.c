@@ -4,6 +4,7 @@
 
 #include "queue.h"
 
+
 // create queue given capacity, return pointer to struct queue_str
 Queue create_queue(int capacity) {
 
@@ -39,14 +40,15 @@ Queue create_queue(int capacity) {
 
 
 // delete queue
-// void delete_queue(Queue q) {
+void delete_queue(Queue q) {
 
-//     for (int i=0; i<q->size; i++) {
-//         free(q->array[i]);
-//     }
+   for (int i=0; i<q->size; i++) {
+       free(q->array[i]->file);
+       free(q->array[i]);
+    }
 
-//     free(q);
-// }
+    free(q);
+}
 
 
 // return 1 if queue is empty
@@ -89,7 +91,6 @@ q_data pop(Queue q) {
 
     int pos = q->front;
 
-    // struct queue_data* data = malloc (sizeof(struct queue_data))
     q_data dt = malloc(sizeof(struct queue_data));
 
     dt->file = calloc(strlen(q->array[pos]->file), sizeof(char));

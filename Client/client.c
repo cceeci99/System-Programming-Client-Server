@@ -1,23 +1,31 @@
 #include <stdio.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+
 #include <errno.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
+#include <string.h>
 #include <fcntl.h>
 
-#define BUFFSIZE 4096
+#include <arpa/inet.h>
+
+#include <sys/socket.h>
+#include <sys/stat.h>
+
+#define BUFFSIZE 4096   // max length of path for given file/directory
+
 
 int create_dir(char *name);
+
 FILE* create_file(char *name);
+
+// copy contents of file that are sent from socket, to local file with FILE pointer fp
 void copy_file(FILE* fp, int socket);
+
 
 int main(int argc, char *argv[]) {
 
     // arguments
-    char serverIP[40];
+    char serverIP[40];      // max length for ip
     char *dir = calloc(BUFFSIZE, sizeof(char));
     int port;
 
@@ -35,6 +43,7 @@ int main(int argc, char *argv[]) {
     }
     
     printf("Client's parameters are:\n");
+    // ----------------------------------
     printf("Server's IP: %s\n", serverIP);
     printf("Port: %d\n", port);
     printf("Directory: %s\n", dir);
@@ -59,40 +68,34 @@ int main(int argc, char *argv[]) {
     }
     
     printf("Connecting to %s on port %d\n", serverIP, port);
+    // ------------------------------------------------------
     
-    // send to server how many bytes he will read for the directory name
+    // 1. Send to server how many bytes he will read for the directory name
     int bytes_to_write = htons(strlen(dir));
     write(sock, &bytes_to_write, sizeof(bytes_to_write));
 
-    // Write the desired directory to copy, into the socket 
+    // 2. Send the desired directory to copy
     write(sock, dir, strlen(dir));
 
-    // read the number of files that are gonna be copied
+    // 3. Read the number of files that are gonna be copied
     int no_files = 0;
     read(sock, &no_files, sizeof(no_files));
     no_files = ntohs(no_files);
 
-    printf("%d files to copy\n", no_files);
-
-    // Receiving Files ...
-    // --------------------
-
-    // char *result_dir = malloc(100);
-    // sprintf(result_dir, "client_%d/", getpid());
-    // mkdir(result_dir, S_IRWXU);
-
+    // for each file that is gonna be copied
     for (int i=0; i<no_files; i++) {
 
-        // 1. read the number of byte for the filename
-        int bytes_to_read = 0;
+        // 1. Eead the number of bytes for the filename
+        bytes_to_read = 0;
         read(sock, &bytes_to_read, sizeof(bytes_to_read));
         bytes_to_read = ntohs(bytes_to_read);
 
-        // 2. Receive the filename (relative path)
+        // 2. Read the filename (relative path)
         char* filename = calloc(bytes_to_read, sizeof(char));
         read(sock, filename, bytes_to_read);
 
         printf("Received file: %s\n", filename);
+        // ---------------------------------------
 
         // 3. Create needed directory hierarchy
         char* temp = strdup(filename);
@@ -100,18 +103,15 @@ int main(int argc, char *argv[]) {
         char* dir = malloc(strlen(token));
         char* last = NULL;
 
+        // tokenize with delimeter '/' to get each subdirectory
         while (token != NULL) {
             
             if (last != NULL) {
-
-                // construct each directory from the hierarchy and create it
+                
+                // concatenate last subdirectory to the new one to construct the relative path for the file
                 dir = realloc(dir, strlen(dir) + strlen(last) + 1);
                 strcat(dir, last);
                 strcat(dir, "/");
-
-                // char *d = malloc(strlen(dir) + strlen(result_dir));
-                // strcat(d, result_dir);
-                // strcat(d, dir);
 
                 create_dir(dir);
             }
@@ -120,17 +120,13 @@ int main(int argc, char *argv[]) {
             token = strtok(NULL, "/");
         }
 
-        // char *t = "./";
-        // char *f = malloc(strlen(filename) + strlen(result_dir) + strlen(t));
-        // strcat(f, t);
-        // strcat(f, result_dir);
-        // strcat(f, filename);
-
-        // 4. create file
+        // 4. Create file
         FILE* fp = create_file(filename);
         
-        // 5. copy contents to the file
+        // 5. Copy contents to the file
         copy_file(fp, sock);
+
+        free(temp); free(dir); free(filename);
     }
 
     close(sock);
@@ -143,47 +139,32 @@ int main(int argc, char *argv[]) {
 // -------------------------------------------------------------------------------------------------------
 void copy_file(FILE* fp, int socket) {
 
-    // 1. Receiving metadata of file (File_size)
-
-    // read the file size in bytes that are supposed to be copied
+    // 1. Read metadata of file (file_size in bytes)
     int file_sz = 0;
     read(socket, &file_sz, sizeof(file_sz));
     file_sz = ntohl(file_sz);
 
-    // printf("File size in bytes to copy: %d\n", file_sz);
-
+    // copy untill all bytes from file are copied, client knows exactly how much he will read and doesn't block on any read call
     int total_bytes_copied = 0;
 
-    // 2. Receiving contents of file
-    while (total_bytes_copied < file_sz) {          // stop copying contents when all bytes are copied
-                                                    // with this way server can know how many times he will read from socket
-        // read number of bytes per block to read
+    while (total_bytes_copied < file_sz) {         
+
+        // 2. Read number of bytes per block to read
         int block_bytes = 0;
         read(socket, &block_bytes, sizeof(block_bytes));
         block_bytes = ntohs(block_bytes);
 
-        // contents of block will be stored in variable block
+        // 3. Read contents and store them in block variable
         char* block = calloc(block_bytes, sizeof(char));
         read(socket, block, block_bytes);
 
-        // printf("Client read %d bytes, block: %s\n", block_bytes, block);
-        
-        // write all the bytes of block into the file
+        // 4. Write all the bytes of block into the file
         fwrite(block, sizeof(char), block_bytes, fp);
 
         total_bytes_copied += block_bytes;
+
+        free(block);
     }
-
-    // printf("Total bytes copied: %d\n", total_bytes_copied);
-}
-
-
-// return 1 if given file exists or 0
-// ----------------------------------
-int file_exists(char *filename) {
-    
-    struct stat   buffer;   
-    return (stat (filename, &buffer) == 0);
 }
 
 
@@ -201,6 +182,15 @@ int create_dir(char *name) {
     }
 
     return 0;
+}
+
+
+// return 1 if given file exists or 0
+// ----------------------------------
+int file_exists(char *filename) {
+    
+    struct stat   buffer;   
+    return (stat (filename, &buffer) == 0);
 }
 
 
