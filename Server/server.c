@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 
 #include <pthread.h>
+#include <sys/time.h>
 
 #include "queue.h"
 
@@ -184,7 +185,15 @@ void get_dir_content(char *path, int client_socket) {
                 pthread_cond_wait(&queue_full_cond, &queue_mutex);
             }
 
-            printf("[Thread: %ld]: Adding file %s to the queue...\n", pthread_self(), path_to_file);
+            // printf("[Thread: %ld]: Adding file %s to the queue...\n", pthread_self(), path_to_file);
+
+            struct timeval  now;
+            struct tm* local;
+
+            gettimeofday(&now, NULL);
+            local = localtime(&now.tv_sec);
+
+            printf("[Thread: %ld]: Adding file %s to the queue at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), path_to_file, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
 
             push(queue, path_to_file, client_socket);
 
@@ -226,7 +235,6 @@ void* read_th(void* arg) {      // args: client_socket
     read(client_socket, dir, bytes_to_read);
 
     printf("[Thread: %ld]: About to scan directory:%s\n", pthread_self(), dir);
-    sleep(5);
 
     // 3. Count how many files in the given directory will be copied
     int total_files = 0;
@@ -268,7 +276,14 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         char* filename = dt->file;
         int client_socket = dt->socket;
 
-        printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+        struct timeval  now;
+        struct tm* local;
+
+        gettimeofday(&now, NULL);
+        local = localtime(&now.tv_sec);
+
+        // printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+        printf("[Thread: %ld]: Received task: <%s, %d>  at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), filename, client_socket, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
 
         // find the corresponding mutex for this socket
         int i;
@@ -351,10 +366,10 @@ void count_files(char *path, int* total_files) {
     struct dirent *dir;
     while ((dir = readdir(d)) != NULL) {
 
-        if(dir-> d_type != DT_DIR) {                                // if the type is not directory just print it with blue color
+        if(dir-> d_type != DT_DIR) {
             *total_files = *total_files + 1;
         }
-        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
+        else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory but exclude . and ..
             char subdir[BUFFSIZE];
             sprintf(subdir, "%s/%s", path, dir->d_name);
             count_files(subdir, total_files);
