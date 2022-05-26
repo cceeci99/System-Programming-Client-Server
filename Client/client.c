@@ -25,7 +25,7 @@ void copy_file(FILE* fp, int socket);
 int main(int argc, char *argv[]) {
 
     // arguments
-    char serverIP[40];      // max length for ip
+    char serverIP[40];
     char *dir = calloc(BUFFSIZE, sizeof(char));
     int port;
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     for (int i=0; i<no_files; i++) {
 
         // 1. Eead the number of bytes for the filename
-        bytes_to_read = 0;
+        int bytes_to_read = 0;
         read(sock, &bytes_to_read, sizeof(bytes_to_read));
         bytes_to_read = ntohs(bytes_to_read);
 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
         // 5. Copy contents to the file
         copy_file(fp, sock);
 
-        free(temp); free(dir); free(filename);
+        // free(temp); free(dir); free(filename);
     }
 
     close(sock);
@@ -163,7 +163,7 @@ void copy_file(FILE* fp, int socket) {
 
         total_bytes_copied += block_bytes;
 
-        free(block);
+        // free(block);
     }
 }
 

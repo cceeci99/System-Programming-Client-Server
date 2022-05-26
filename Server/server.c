@@ -145,12 +145,12 @@ int main(int argc, char *argv[]) {
 
     close(server_socket);
 
-    for (int i=0; i<mutexes_capacity; i++) {
-        free(mutexes[i]);
-    }
-    free(mutexes);
+    // for (int i=0; i<mutexes_capacity; i++) {
+    //     free(mutexes[i]);
+    // }
+    // free(mutexes);
 
-    delete_queue(queue);
+    // delete_queue(queue);
 
     return 0;
 }
@@ -194,7 +194,7 @@ void get_dir_content(char *path, int client_socket) {
             pthread_mutex_unlock(&queue_mutex);
             // -- Unlock queue mutex , so worker threads can access to it ----
 
-            free(path_to_file);           
+            // free(path_to_file);           
         }
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
 
@@ -226,7 +226,8 @@ void* read_th(void* arg) {      // args: client_socket
     read(client_socket, dir, bytes_to_read);
 
     printf("[Thread: %ld]: About to scan directory:%s\n", pthread_self(), dir);
-    
+    sleep(5);
+
     // 3. Count how many files in the given directory will be copied
     int total_files = 0;
     count_files(dir, &total_files);
@@ -238,7 +239,7 @@ void* read_th(void* arg) {      // args: client_socket
     // 5. Find contents of dir and push to the queue  <File, Socket_fd>
     get_dir_content(dir, client_socket);
 
-    free(dir);
+    // free(dir);
 }
 
 
@@ -293,7 +294,7 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         pthread_mutex_unlock(&mutexes[i]->mutex);
         // -- Unlock mutex for this client so others can write too ----
 
-        free(dt);
+        // free(dt);
     }
 }
 
@@ -334,7 +335,7 @@ void send_file_content(char* file, int client_socket) {
         write(client_socket, buff, buff_sz);
     }
 
-    free(buff);
+    // free(buff);
 }
 
 
