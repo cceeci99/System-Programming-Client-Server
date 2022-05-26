@@ -14,13 +14,18 @@
 #define BUFFSIZE 4096   // max length of path for given file/directory
 
 
+// --------------- Used Functions  --------------
+
+// create dir with given name
 int create_dir(char *name);
 
+// create file with given name and return FILE* pointer to it
 FILE* create_file(char *name);
 
 // copy contents of file that are sent from socket, to local file with FILE pointer fp
 void copy_file(FILE* fp, int socket);
 
+// ---------------------------------------------
 
 int main(int argc, char *argv[]) {
 
@@ -51,6 +56,7 @@ int main(int argc, char *argv[]) {
     // create socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     
+    // this is for binding to the port so it can be used again
     int val=1;
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
@@ -92,15 +98,10 @@ int main(int argc, char *argv[]) {
         printf("bytes for filename:%d\n", bytes_to_read);
 
         // 2. Read the filename (relative path)
-        filename = calloc(bytes_to_read, sizeof(char));
+        char* filename = calloc(bytes_to_read, sizeof(char));
         read(sock, filename, bytes_to_read);
 
-        // char *filename = malloc(sizeof(char)*(bytes_to_read + 1));
-        // memset(filename, 0, sizeof(char)*(1+bytes_to_read));
-
-        // filename[bytes_to_read] = '\0';
-
-        printf("Received file: %s strlen(file)=%ld\n", filename, strlen(filename));
+        printf("Received file: %s\n", filename);
         // ---------------------------------------
 
         // 3. Create needed directory hierarchy
@@ -134,6 +135,7 @@ int main(int argc, char *argv[]) {
     }
 
     close(sock);
+    free(dir);
 
     return 0;
 }
@@ -188,6 +190,8 @@ int create_dir(char *name) {
         exit(EXIT_FAILURE);
     }
 
+    free(dir);
+    
     return 0;
 }
 

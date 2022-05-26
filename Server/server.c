@@ -22,6 +22,11 @@ int block_sz;   // global, avoid passing many arguments to threads
 
 Queue queue;    // global shared variable to all threads
 
+
+// A 'map' of  (sockets, mutexes) is needed for the mutual exclusion over the socket on which workers will write
+// Two workers can't write at the same time on the same socket, but when one thread is writing on other socket there can be others workers writing on other sockets
+
+// -----------------------
 struct client_mutex {
     pthread_mutex_t mutex;
     int socket;
@@ -29,18 +34,26 @@ struct client_mutex {
 
 typedef struct client_mutex *client_mutx;
 
-int mutexes_capacity = 10;
-int mutexes_size = 0;
+// dynamic array for mutexes
 client_mutx *mutexes;
 
-pthread_mutex_t queue_mutex;
-pthread_cond_t queue_full_cond;
-pthread_cond_t queue_empty_cond;
+int mutexes_capacity = 10;      // mutexes init capacity
+int mutexes_size = 0;           // mutexes size,  resize (with realloc) when size = capacity
+// -------------------------
 
+
+pthread_mutex_t queue_mutex;        // mutex used for the mutual exclusion over the access of the queue
+pthread_cond_t queue_full_cond;     // condition variable, if the queue is full  (communicaction thread waits)
+pthread_cond_t queue_empty_cond;    // condition variable, if the queue is empty (worker thread waits)
+
+
+// read_th is the job which communication thread does
 void* read_th(void* args);
+
+
+// write_th is the job which worker thread does
 void* write_th(void* args);
 
-void count_files(char *path, int *total_files);
 
 int main(int argc, char *argv[]) {
 
@@ -123,16 +136,23 @@ int main(int argc, char *argv[]) {
         printf("Accepted connection from localhost\n");
 
         // --------------------------------------
-        if (mutexes_size >= mutexes_capacity) {
+        if (mutexes_size >= mutexes_capacity) {     // resize if mutexes_array size has reached capacity
             mutexes_capacity *= 2;
             mutexes = realloc(mutexes, mutexes_capacity*sizeof(client_mutx));
+
             for (int i=mutexes_size; i<mutexes_capacity; i++) {
                 mutexes[i] = malloc(sizeof(struct client_mutex));
+                if (mutexes[i] == NULL) {
+                    perror("malloc");
+                    exit(EXIT_FAILURE);
+                }
             }
         }
 
+        // add new mutex to the corresponding socket
         mutexes[mutexes_size]->socket = client_socket;
         pthread_mutex_init(&(mutexes[mutexes_size]->mutex), NULL);
+
         mutexes_size++;
         // --------------------------------------
 
@@ -191,6 +211,8 @@ void get_dir_content(char *path, int client_socket) {
 
             push(queue, path_to_file, client_socket);
 
+            free(path_to_file);
+
             // signal queue_empty condition that there is data in the queue to be poped
             pthread_cond_signal(&queue_empty_cond);
 
@@ -200,6 +222,7 @@ void get_dir_content(char *path, int client_socket) {
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
 
             char subdir[BUFFSIZE];
+            memset(subdir, 0, BUFFSIZE);
             sprintf(subdir, "%s/%s", path, dir->d_name);
 
             // recursively show contents of subdir
@@ -238,6 +261,8 @@ void* read_th(void* arg) {      // args: client_socket
 
     // 5. Find contents of dir and push to the queue  <File, Socket_fd>
     get_dir_content(dir, client_socket);
+
+    free(dir);
 }
 
 
@@ -337,6 +362,8 @@ void send_file_content(char* file, int client_socket) {
         // write the buff to the socket 
         write(client_socket, buff, buff_sz);
     }
+
+    free(buff);
 }
 
 
