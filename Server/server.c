@@ -146,13 +146,6 @@ int main(int argc, char *argv[]) {
 
     close(server_socket);
 
-    // for (int i=0; i<mutexes_capacity; i++) {
-    //     free(mutexes[i]);
-    // }
-    // free(mutexes);
-
-    // delete_queue(queue);
-
     return 0;
 }
 
@@ -193,7 +186,8 @@ void get_dir_content(char *path, int client_socket) {
             gettimeofday(&now, NULL);
             local = localtime(&now.tv_sec);
 
-            printf("[Thread: %ld]: Adding file %s to the queue at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), path_to_file, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
+            printf("[Thread: %ld]: Adding file %s to the queue\n", pthread_self(), path_to_file);
+            // printf("[Thread: %ld]: Adding file %s to the queue at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), path_to_file, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
 
             push(queue, path_to_file, client_socket);
 
@@ -202,8 +196,6 @@ void get_dir_content(char *path, int client_socket) {
 
             pthread_mutex_unlock(&queue_mutex);
             // -- Unlock queue mutex , so worker threads can access to it ----
-
-            // free(path_to_file);           
         }
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
 
@@ -246,8 +238,6 @@ void* read_th(void* arg) {      // args: client_socket
 
     // 5. Find contents of dir and push to the queue  <File, Socket_fd>
     get_dir_content(dir, client_socket);
-
-    // free(dir);
 }
 
 
@@ -282,8 +272,8 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         gettimeofday(&now, NULL);
         local = localtime(&now.tv_sec);
 
-        // printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
-        printf("[Thread: %ld]: Received task: <%s, %d>  at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), filename, client_socket, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
+        printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
+        // printf("[Thread: %ld]: Received task: <%s, %d>  at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), filename, client_socket, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
 
         // find the corresponding mutex for this socket
         int i;
@@ -308,8 +298,6 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
 
         pthread_mutex_unlock(&mutexes[i]->mutex);
         // -- Unlock mutex for this client so others can write too ----
-
-        // free(dt);
     }
 }
 
@@ -349,8 +337,6 @@ void send_file_content(char* file, int client_socket) {
         // write the buff to the socket 
         write(client_socket, buff, buff_sz);
     }
-
-    // free(buff);
 }
 
 

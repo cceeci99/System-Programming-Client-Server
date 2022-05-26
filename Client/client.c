@@ -85,16 +85,22 @@ int main(int argc, char *argv[]) {
     // for each file that is gonna be copied
     for (int i=0; i<no_files; i++) {
 
-        // 1. Eead the number of bytes for the filename
+        // 1. Read the number of bytes for the filename
         int bytes_to_read = 0;
         read(sock, &bytes_to_read, sizeof(bytes_to_read));
         bytes_to_read = ntohs(bytes_to_read);
+        printf("bytes for filename:%d\n", bytes_to_read);
 
         // 2. Read the filename (relative path)
-        char* filename = calloc(bytes_to_read, sizeof(char));
+        filename = calloc(bytes_to_read, sizeof(char));
         read(sock, filename, bytes_to_read);
 
-        printf("Received file: %s\n", filename);
+        // char *filename = malloc(sizeof(char)*(bytes_to_read + 1));
+        // memset(filename, 0, sizeof(char)*(1+bytes_to_read));
+
+        // filename[bytes_to_read] = '\0';
+
+        printf("Received file: %s strlen(file)=%ld\n", filename, strlen(filename));
         // ---------------------------------------
 
         // 3. Create needed directory hierarchy
@@ -112,7 +118,7 @@ int main(int argc, char *argv[]) {
                 dir = realloc(dir, strlen(dir) + strlen(last) + 1);
                 strcat(dir, last);
                 strcat(dir, "/");
-
+                
                 create_dir(dir);
             }
 
@@ -125,8 +131,6 @@ int main(int argc, char *argv[]) {
         
         // 5. Copy contents to the file
         copy_file(fp, sock);
-
-        // free(temp); free(dir); free(filename);
     }
 
     close(sock);
@@ -162,8 +166,6 @@ void copy_file(FILE* fp, int socket) {
         fwrite(block, sizeof(char), block_bytes, fp);
 
         total_bytes_copied += block_bytes;
-
-        // free(block);
     }
 }
 
@@ -171,9 +173,14 @@ void copy_file(FILE* fp, int socket) {
 // create directory with given name
 // --------------------------------
 int create_dir(char *name) {
-    
+
     // remove the last '/' character from the name  e.x  bar/foo/foobar/ 
-    char* dir = malloc(strlen(name)-1);
+    char* dir = calloc(strlen(name)-1, sizeof(char));
+    if (dir == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
     memcpy(dir, name, strlen(name)-1);
 
     if (mkdir(dir, S_IRWXU) != 0 && errno != EEXIST) {
