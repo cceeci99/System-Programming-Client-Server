@@ -1,0 +1,15 @@
+AI Dungeon is a text adventure game but unlike traditional text adventure games, which use pre-written content,[1] AI Dungeon uses artificial intelligence to generate open-ended storylines.[2][3][4]
+
+When first beginning the game, players are greeted by the following opening:
+
+"You're about to enter a world of endless possibilities, where you can do absolutely anything you can imagine.... Will you proceed?"[5]
+Players are then prompted to choose a setting for their adventure (e.g. fantasy, mystery, apocalyptic, cyberpunk, zombies),[6][7] followed by other options relevant to the setting (such as character class for fantasy settings).[8]
+
+After beginning an adventure, there are three main interaction methods that can be chosen for each of the player's pieces of text input:[9]
+
+Do: Must be followed by a verb, allowing the player to perform an action.
+Say: Must be followed by dialog sentences, allowing players to communicate with other characters.
+Story: Can be followed by sentences describing something that happens to progress the story, or that players want the AI to know for future events.
+The game's artificial intelligence allows it to adapt and respond to almost any action entered by the player.[10]
+
+Providing blank input can also be used to prompt the AI to generate further content, and the game also provides players with options to undo/redo or modify recent events, in order to improve the game's narrative.[11] Players are also given an option to explicitly tell the AI what elements to "remember" for reference in future parts of their playthrough.[12]
