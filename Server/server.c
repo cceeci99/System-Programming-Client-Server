@@ -198,20 +198,9 @@ void get_dir_content(char *path, int client_socket) {
                 pthread_cond_wait(&queue_full_cond, &queue_mutex);
             }
 
-            // printf("[Thread: %ld]: Adding file %s to the queue...\n", pthread_self(), path_to_file);
-
-            struct timeval  now;
-            struct tm* local;
-
-            gettimeofday(&now, NULL);
-            local = localtime(&now.tv_sec);
-
-            printf("[Thread: %ld]: Adding file %s to the queue\n", pthread_self(), path_to_file);
-            // printf("[Thread: %ld]: Adding file %s to the queue at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), path_to_file, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
+            printf("[Thread: %ld]: Adding file %s to the queue...\n", pthread_self(), path_to_file);
 
             push(queue, path_to_file, client_socket);
-
-            free(path_to_file);
 
             // signal queue_empty condition that there is data in the queue to be poped
             pthread_cond_signal(&queue_empty_cond);
@@ -291,14 +280,7 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         char* filename = dt->file;
         int client_socket = dt->socket;
 
-        struct timeval  now;
-        struct tm* local;
-
-        gettimeofday(&now, NULL);
-        local = localtime(&now.tv_sec);
-
         printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
-        // printf("[Thread: %ld]: Received task: <%s, %d>  at:[%02d:%02d:%02d.%03ld]\n", pthread_self(), filename, client_socket, local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
 
         // find the corresponding mutex for this socket
         int i;
@@ -388,6 +370,5 @@ void count_files(char *path, int* total_files) {
             count_files(subdir, total_files);
         }
     }
-
     closedir(d);
 }

@@ -4,12 +4,11 @@
 
 #include <errno.h>
 #include <string.h>
-#include <fcntl.h>
-
-#include <arpa/inet.h>
 
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
+
 
 #define BUFFSIZE 4096   // max length of path for given file/directory
 
@@ -26,6 +25,7 @@ FILE* create_file(char *name);
 void copy_file(FILE* fp, int socket);
 
 // ---------------------------------------------
+
 
 int main(int argc, char *argv[]) {
 
@@ -95,7 +95,6 @@ int main(int argc, char *argv[]) {
         int bytes_to_read = 0;
         read(sock, &bytes_to_read, sizeof(bytes_to_read));
         bytes_to_read = ntohs(bytes_to_read);
-        printf("bytes for filename:%d\n", bytes_to_read);
 
         // 2. Read the filename (relative path)
         char* filename = calloc(bytes_to_read, sizeof(char));
@@ -183,15 +182,13 @@ int create_dir(char *name) {
         exit(EXIT_FAILURE);
     }
 
-    memcpy(dir, name, strlen(name)-1);
+    // memcpy(dir, name, strlen(name)-1);
 
-    if (mkdir(dir, S_IRWXU) != 0 && errno != EEXIST) {
+    if (mkdir(name, S_IRWXU) != 0 && errno != EEXIST) {
         perror("mkdir");
         exit(EXIT_FAILURE);
     }
 
-    free(dir);
-    
     return 0;
 }
 
