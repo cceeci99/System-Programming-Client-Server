@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         
-        printf("Accepted connection from localhost\n");
+        printf("Accepted connection from %s\n", inet_ntoa(client_addr.sin_addr));
 
         // --------------------------------------
         if (mutexes_size >= mutexes_capacity) {     // resize if mutexes_array size has reached capacity
