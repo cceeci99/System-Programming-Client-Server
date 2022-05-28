@@ -77,7 +77,7 @@ The two threads are implemented with the functions:
   - Reads the directory's name
   - count the files to copy and send them to client
   - scan the directory and for each file push it to the queue
-  - for the access of the queue, comm_thread locks the queue_mutex, and waits on cond queue_full_cond while the queue is full.
+  - for the access of the queue, locks the queue_mutex, and waits on cond queue_full_cond while the queue is full.
   - signals the queue_empty_cond when new file is pushed to the queue
 
 2. worker_thread_t():
