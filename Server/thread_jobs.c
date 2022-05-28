@@ -52,8 +52,6 @@ void get_dir_content(char *path, int client_socket) {
 
             pthread_mutex_unlock(&queue_mutex);
             // -- Unlock queue mutex , so worker threads can access to it ----
-
-            free(path_to_file);
         }
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
 
@@ -106,8 +104,6 @@ void send_file_content(char* file, int client_socket) {
         // write the buff to the socket 
         write(client_socket, buff, buff_sz);
     }
-
-    free(buff);
 }
 
 

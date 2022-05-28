@@ -95,6 +95,4 @@ Notes: (Paradoxes gia thn ergasia)
 1. For implemeting more simple the copying of folders, each folder is copied with the relative path and all subdirectories are created.
 For example if client wants to copy test/fold1/fold2 then the result in Client's hierarchy will be:  test/fold1/fold2 and not only fold2.
 
-2. Running the program, with some script that spawns many clients, if the directories are small with small number of files, it seems as it runs "serially"
-meaning each client's request completes before the new one comes. If first client has a lot of files to copy and takes some time then the second  client's request
-will be fulffiled first.
+2. If first client's request contains small amount of files to copy then it will be fulffiled before the arrival of the second request.

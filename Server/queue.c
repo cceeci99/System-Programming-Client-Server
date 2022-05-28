@@ -39,18 +39,6 @@ Queue create_queue(int capacity) {
 }
 
 
-// delete queue
-void delete_queue(Queue q) {
-
-    for (int i=0; i<q->capacity; i++) {
-       free(q->array[i]->file);
-       free(q->array[i]);
-    }
-
-    free(q);
-}
-
-
 // return 1 if queue is empty
 int queue_empty(Queue q) {
     return (q->size == 0);

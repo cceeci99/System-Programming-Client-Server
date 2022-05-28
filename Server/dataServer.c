@@ -178,8 +178,6 @@ void* communication_thread_t(void* arg) {      // args: client_socket
 
     // 5. Find contents of dir and push to the queue  <File, Socket_fd>
     get_dir_content(dir, client_socket);
-
-    free(dir);
 }
 
 
@@ -234,7 +232,5 @@ void* worker_thread_t(void* args) {
 
         pthread_mutex_unlock(&mutexes[i]->mutex);
         // -- Unlock mutex for this client so others can write too ----
-
-        free(filename);
     }
 }

@@ -132,12 +132,9 @@ int main(int argc, char *argv[]) {
         
         // 5. Copy contents to the file
         copy_file(fp, sock);
-
-        free(temp);
     }
 
     close(sock);
-    free(directory);
 
     return 0;
 }
