@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include <unistd.h>
-
+#include <signal.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <dirent.h>
@@ -18,8 +18,8 @@
 
 #define BUFFSIZE 4096
 
-int block_sz;   // global, avoid passing many arguments to threads
 
+int block_sz;   // global, avoid passing many arguments to threads
 Queue queue;    // global shared variable to all threads
 
 
@@ -194,7 +194,7 @@ void get_dir_content(char *path, int client_socket) {
             pthread_mutex_lock(&queue_mutex);
 
             // wait on condition queue_full, untill some worker thread signals  that there is space available in queue
-            if (queue_full(queue)) {
+            while (queue_full(queue)) {
                 pthread_cond_wait(&queue_full_cond, &queue_mutex);
             }
 
@@ -207,6 +207,8 @@ void get_dir_content(char *path, int client_socket) {
 
             pthread_mutex_unlock(&queue_mutex);
             // -- Unlock queue mutex , so worker threads can access to it ----
+
+            free(path_to_file);
         }
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory
 
@@ -235,8 +237,9 @@ void* read_th(void* arg) {      // args: client_socket
     bytes_to_read = ntohs(bytes_to_read);
 
     // 2. Read the desired directory from client
-    char *dir = calloc(bytes_to_read, sizeof(char));
+    char *dir = malloc(bytes_to_read+1);
     read(client_socket, dir, bytes_to_read);
+    dir[bytes_to_read] = '\0';
 
     printf("[Thread: %ld]: About to scan directory:%s\n", pthread_self(), dir);
 
@@ -264,8 +267,8 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         // -- Lock mutex to access queue -----
         pthread_mutex_lock(&queue_mutex);
 
-        // waint on condition queue_empty untill communication thread signals that there is content in the queue
-        if (queue_empty(queue)) {
+        // wait on condition queue_empty untill communication thread signals that there is content in the queue
+        while (queue_empty(queue)) {
             pthread_cond_wait(&queue_empty_cond, &queue_mutex);
         }
     
@@ -277,8 +280,10 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
         pthread_mutex_unlock(&queue_mutex);
         // --- Unlock mutex for queue --------
 
-        char* filename = dt->file;
         int client_socket = dt->socket;
+
+        char *filename = malloc((strlen(dt->file) + 1)*sizeof(char));
+        strcpy(filename, dt->file);
 
         printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
 
@@ -305,6 +310,8 @@ void* write_th(void* args) {        // arguments: client_socket, block_sz
 
         pthread_mutex_unlock(&mutexes[i]->mutex);
         // -- Unlock mutex for this client so others can write too ----
+
+        free(filename);
     }
 }
 
@@ -366,9 +373,11 @@ void count_files(char *path, int* total_files) {
         }
         else if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0) {    // it's directory but exclude . and ..
             char subdir[BUFFSIZE];
+            memset(subdir, 0, BUFFSIZE);
             sprintf(subdir, "%s/%s", path, dir->d_name);
             count_files(subdir, total_files);
         }
     }
+
     closedir(d);
 }

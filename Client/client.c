@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
     // arguments
     char serverIP[40];
-    char *dir = calloc(BUFFSIZE, sizeof(char));
+    char *directory = calloc(BUFFSIZE, sizeof(char));
     int port;
 
     for (int i=1; i<argc; i++) {
@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
             strcpy(serverIP, argv[i]);
         }
         if (strcmp(argv[i-1], "-d") == 0) {
-            strcpy(dir, argv[i]);
+            strcpy(directory, argv[i]);
         }
     }
     
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     // ----------------------------------
     printf("Server's IP: %s\n", serverIP);
     printf("Port: %d\n", port);
-    printf("Directory: %s\n", dir);
+    printf("Directory: %s\n", directory);
 
     // create socket
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -77,11 +77,11 @@ int main(int argc, char *argv[]) {
     // ------------------------------------------------------
     
     // 1. Send to server how many bytes he will read for the directory name
-    int bytes_to_write = htons(strlen(dir));
+    int bytes_to_write = htons(strlen(directory));
     write(sock, &bytes_to_write, sizeof(bytes_to_write));
 
     // 2. Send the desired directory to copy
-    write(sock, dir, strlen(dir));
+    write(sock, directory, strlen(directory));
 
     // 3. Read the number of files that are gonna be copied
     int no_files = 0;
@@ -115,6 +115,7 @@ int main(int argc, char *argv[]) {
             if (last != NULL) {
                 
                 // concatenate last subdirectory to the new one to construct the relative path for the file
+                // ** if client asks for test/fold2/fold3 (meaning only fold3) we, the result will be also the fold3 directory but within the test/fold2
                 dir = realloc(dir, strlen(dir) + strlen(last) + 1);
                 strcat(dir, last);
                 strcat(dir, "/");
@@ -131,10 +132,12 @@ int main(int argc, char *argv[]) {
         
         // 5. Copy contents to the file
         copy_file(fp, sock);
+
+        free(temp);
     }
 
     close(sock);
-    free(dir);
+    free(directory);
 
     return 0;
 }
@@ -175,16 +178,21 @@ void copy_file(FILE* fp, int socket) {
 // --------------------------------
 int create_dir(char *name) {
 
-    // remove the last '/' character from the name  e.x  bar/foo/foobar/ 
-    char* dir = calloc(strlen(name)-1, sizeof(char));
+    int bytes = strlen(name);
+
+    char *dir = malloc(bytes*sizeof(char));
     if (dir == NULL) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
+    
+    memset(dir, 0, bytes);
 
-    // memcpy(dir, name, strlen(name)-1);
+    // remove the last '/' character from the name  e.x  bar/foo/foobar/ 
+    memcpy(dir, name, bytes-1);
+    dir[bytes-1] = '\0';
 
-    if (mkdir(name, S_IRWXU) != 0 && errno != EEXIST) {
+    if (mkdir(dir, S_IRWXU) != 0 && errno != EEXIST) {
         perror("mkdir");
         exit(EXIT_FAILURE);
     }

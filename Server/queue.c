@@ -42,7 +42,7 @@ Queue create_queue(int capacity) {
 // delete queue
 void delete_queue(Queue q) {
 
-   for (int i=0; i<q->size; i++) {
+    for (int i=0; i<q->capacity; i++) {
        free(q->array[i]->file);
        free(q->array[i]);
     }
@@ -73,7 +73,7 @@ void push(Queue q, char* file, int socket) {
     q->rear = (q->rear+1) % q->capacity;
     int pos = q->rear;
 
-    q->array[pos]->file =  calloc(strlen(file), sizeof(char));
+    q->array[pos]->file =  malloc((strlen(file)+1)*sizeof(char));
     strcpy(q->array[pos]->file, file);
 
     q->array[pos]->socket = socket;
@@ -93,7 +93,7 @@ q_data pop(Queue q) {
 
     q_data dt = malloc(sizeof(struct queue_data));
 
-    dt->file = calloc(strlen(q->array[pos]->file), sizeof(char));
+    dt->file = malloc(strlen(q->array[pos]->file + 1)*sizeof(char));
     strcpy(dt->file, q->array[pos]->file);
 
     dt->socket = q->array[pos]->socket;
