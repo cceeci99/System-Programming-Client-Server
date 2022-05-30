@@ -202,10 +202,10 @@ void* worker_thread_t(void* args) {
         pthread_mutex_unlock(&queue_mutex);
         // --- Unlock mutex for queue --------
 
-        int client_socket = dt->socket;
-
-        char *filename = malloc((strlen(dt->file) + 1)*sizeof(char));
+        char *filename = malloc(strlen(dt->file)+1);
         strcpy(filename, dt->file);
+
+        int client_socket = dt->socket;
 
         printf("[Thread: %ld]: Received task: <%s, %d>\n", pthread_self(), filename, client_socket);
 
@@ -222,10 +222,10 @@ void* worker_thread_t(void* args) {
 
         // 1. send number of bytes for the filename
         int bytes_to_write = htons(strlen(filename));
-        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));      // race condition
+        write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
 
         // 2. send the filename
-        write(client_socket, filename, strlen(filename));                   // race condition
+        write(client_socket, filename, strlen(filename));
 
         // 3. send file contents
         send_file_content(filename, client_socket);

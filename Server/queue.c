@@ -79,16 +79,9 @@ q_data pop(Queue q) {
 
     int pos = q->front;
 
-    q_data dt = malloc(sizeof(struct queue_data));
-
-    dt->file = malloc(strlen(q->array[pos]->file + 1)*sizeof(char));
-    strcpy(dt->file, q->array[pos]->file);
-
-    dt->socket = q->array[pos]->socket;
-
     q->front = (q->front + 1) % q->capacity;
 
     q->size--;
 
-    return dt;
+    return q->array[pos];
 }

@@ -97,8 +97,9 @@ int main(int argc, char *argv[]) {
         bytes_to_read = ntohs(bytes_to_read);
 
         // 2. Read the filename (relative path)
-        char* filename = calloc(bytes_to_read, sizeof(char));
+        char* filename = malloc((bytes_to_read+1)*sizeof(char));
         read(sock, filename, bytes_to_read);
+        filename[bytes_to_read] = '\0';
 
         printf("Received file: %s\n", filename);
         // ---------------------------------------
