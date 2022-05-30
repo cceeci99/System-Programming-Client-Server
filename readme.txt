@@ -19,8 +19,9 @@ Running Program:
 ---------------
 - make
 - in splitted terminal  
-  1) cd Server -> hostname -I to get the IP of server ->  ./dataServer -p <port> -q <queue_sz> -s <pool_sz> -b <block_sz>
-  2) cd Client -> ./remoteClient -p <port> -i <server's IP> -d <dir>
+  1) hostname -I to get the IP of server ->  ./dataServer -p <port> -q <queue_sz> -s <pool_sz> -b <block_sz>
+  2) cd Client -> ./remoteClient -p <port> -i <server's IP> -d <dir> 
+   or:  ./Client/remoteClient -p <port> -i <server's IP> -d <dir>
 
 to see the functionality with many clients, a script would help to spawn more than one clients.
 
@@ -92,7 +93,33 @@ The two threads are implemented with the functions:
 Notes: (Paradoxes gia thn ergasia)
 -----------------------------------
 
-1. For implemeting more simple the copying of folders, each folder is copied with the relative path and all subdirectories are created.
-For example if client wants to copy test/fold1/fold2 then the result in Client's hierarchy will be:  test/fold1/fold2 and not only fold2.
+1. ** Theoroume oti h fakelodomh tou Server vrisketai sto directory Server kai mono apo ekei mporei na zhthsei o Client, katalogous gia antigrafh.
+To ektelesimo tou dataServer dhmioyrgeitai sto geniko project directory, enw to remoteClient mesa sto fakelo Client, opou kai tha grafontai ta apotelesmata.
+Einai shmantiko to gegonos oti den prepei na vriskontai ston idio katalogo ta dyo ektelesima, wste auto na anaprosarmwsei to modelo Client, Server.
 
-2. If first client's request contains small amount of files to copy then it will be fulffiled before the arrival of the second request.
+Epeidh theloume omws to ektelesimo dataServer na paei na psaksei gia katalogous mesa sto Server kai MONO, prepei o kathe katalogos apo ton client na zhteitai me to relative path
+dhladh: Server/foo/test1,  Server/foo/bar/test1,  Server, enw an zhththei sketo fakelos foo, den tha vrethei kathws to ektelesimo den vrisketai sto Server.
+
+Ola ta apotelesmata tha fainontai ston fakelo Client kai ekei tha sygkrinontai me auta toy Server apo ton user.
+
+2. ** Gia aplothta, o kathe katalogos antigrafetai me to relative path mexri dhladh ton fakelo pou periexei to teliko arxeio. Dhladh an o Server
+exei thn ekshsh ierarxia: 
+
+-Server/foo/file2
+-Server/foo/bar/file1
+
+Kai o client tou zhthsei  -d Server/bar, o client telika tha parei ws apotelesma olh th fakelodomh dhladh: Server/foo/bar/file1, alla 
+MONO o katalogos bar tha einai autos o opoios tha exei ginei copy me ola ta periexomena tou, enw gia paradeigma to file2 sto fakelo foo
+den tha exei antigrafei.
+
+
+3. Sxetika me thn leitourgia tou sygxronismou sto programma, einai profanes oti ean to 1o aithma einai arketa syntomo(mikro arithmo arxeiwn),
+mporei na fainetai h seiriakh ektelesh twn aithmatwn mias kai tha prolavainei na oloklirwthei to kathe aithma prin erthei to epomen, milwntas panta
+gia senaria treksimatos tou programmatos apo ton xrhsth.
+
+** To ektelesimo tou client mporei na to treksete eite mesa apo to directory Client dhladh:
+  cd Client
+  ./remoteClient ...
+
+  eite apeytheias
+  ./Client/remoteClient.
