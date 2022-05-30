@@ -21,7 +21,6 @@ Running Program:
 - in splitted terminal  
   1) hostname -I to get the IP of server ->  ./dataServer -p <port> -q <queue_sz> -s <pool_sz> -b <block_sz>
   2) cd Client -> ./remoteClient -p <port> -i <server's IP> -d <dir> 
-   or:  ./Client/remoteClient -p <port> -i <server's IP> -d <dir>
 
 to see the functionality with many clients, a script would help to spawn more than one clients.
 
@@ -120,6 +119,3 @@ gia senaria treksimatos tou programmatos apo ton xrhsth.
 ** To ektelesimo tou client mporei na to treksete eite mesa apo to directory Client dhladh:
   cd Client
   ./remoteClient ...
-
-  eite apeytheias
-  ./Client/remoteClient.
