@@ -172,6 +172,14 @@ void copy_file(FILE* fp, int socket) {
 }
 
 
+// return 1 if given file exists or 0
+// ----------------------------------
+int file_exists(char *filename) {
+    
+    struct stat   buffer;   
+    return (stat (filename, &buffer) == 0);
+}
+
 // create directory with given name
 // --------------------------------
 int create_dir(char *name) {
@@ -190,21 +198,23 @@ int create_dir(char *name) {
     memcpy(dir, name, bytes-1);
     dir[bytes-1] = '\0';
 
+    if (file_exists(dir)) {     // remove file with same name as dir if exists
+        unlink(dir);
+    }
+
     if (mkdir(dir, S_IRWXU) != 0 && errno != EEXIST) {
         perror("mkdir");
         exit(EXIT_FAILURE);
     }
-
     return 0;
 }
 
 
-// return 1 if given file exists or 0
-// ----------------------------------
-int file_exists(char *filename) {
+int is_regular_file(const char *path) {
     
-    struct stat   buffer;   
-    return (stat (filename, &buffer) == 0);
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode);
 }
 
 
@@ -212,7 +222,7 @@ int file_exists(char *filename) {
 // -------------------------------------------------------
 FILE* create_file(char *name) {
 
-    if (file_exists(name)) {        // if it exists delete it and create new one
+    if (file_exists(name) && is_regular_file(name)) {        // if it exists delete it and create new one
         unlink(name);
     }
 

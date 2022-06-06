@@ -178,6 +178,8 @@ void* communication_thread_t(void* arg) {      // args: client_socket
 
     // 5. Find contents of dir and push to the queue  <File, Socket_fd>
     get_dir_content(dir, client_socket);
+
+    pthread_exit(0);
 }
 
 

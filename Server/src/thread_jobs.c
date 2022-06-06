@@ -75,7 +75,7 @@ void send_file_content(char* file, int client_socket) {
     
     FILE* fp = fopen(file, "r");
     if (fp == NULL) {
-        perror("fopen");
+        strerror(errno);
         exit(EXIT_FAILURE);
     }
 

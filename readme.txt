@@ -96,8 +96,16 @@ Notes: (Paradoxes gia thn ergasia)
 To ektelesimo tou dataServer dhmioyrgeitai sto geniko project directory, enw to remoteClient mesa sto fakelo Client, opou kai tha grafontai ta apotelesmata.
 Einai shmantiko to gegonos oti den prepei na vriskontai ston idio katalogo ta dyo ektelesima, wste auto na anaprosarmwsei to modelo Client, Server.
 
+*****
 Epeidh theloume omws to ektelesimo dataServer na paei na psaksei gia katalogous mesa sto Server kai MONO, prepei o kathe katalogos apo ton client na zhteitai me to relative path
-dhladh: Server/foo/test1,  Server/foo/bar/test1,  Server, enw an zhththei sketo fakelos foo, den tha vrethei kathws to ektelesimo den vrisketai sto Server.
+dhladh: 
+
+Server/foo/test1,   -> kanei copy to test1 
+Server/foo/bar/test2, -> kanei copy to test2
+Server, -> kanei copy olh thn ierarxia tou Server
+
+* enw an zhththei sketo fakelos foo (o opoios den yparxei sto katalogo opou vrisketai to dataServer), den tha vrethei kathws to ektelesimo den vrisketai sto Server.
+*****
 
 Ola ta apotelesmata tha fainontai ston fakelo Client kai ekei tha sygkrinontai me auta toy Server apo ton user.
 
@@ -116,6 +124,8 @@ den tha exei antigrafei.
 mporei na fainetai h seiriakh ektelesh twn aithmatwn mias kai tha prolavainei na oloklirwthei to kathe aithma prin erthei to epomen, milwntas panta
 gia senaria treksimatos tou programmatos apo ton xrhsth.
 
-** To ektelesimo tou client mporei na to treksete eite mesa apo to directory Client dhladh:
+******************
+** To ektelesimo tou Client prepei na to treksete mesa apo to directory Client dhladh:
   cd Client
   ./remoteClient ...
+******************
