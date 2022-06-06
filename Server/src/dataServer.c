@@ -106,13 +106,13 @@ int main(int argc, char *argv[]) {
         struct sockaddr_in client_addr;
         socklen_t addr_size;
 
-        int client_socket = accept(server_socket, (struct sockaddr*) &client_addr, &addr_size);
+        uint64_t client_socket =  (uint64_t) accept(server_socket, (struct sockaddr*) &client_addr, &addr_size);
         if (client_socket == -1) {
             perror("accept");
             exit(EXIT_FAILURE);
         }
         
-        printf("Accepted connection from %s\n", inet_ntoa(client_addr.sin_addr));
+        printf("Accepted connection from %s on client_socket:%ld\n", inet_ntoa(client_addr.sin_addr), client_socket);
 
         // ---------------------------------------
         if (mutexes_size >= mutexes_capacity) {     // resize if mutexes_array size has reached capacity
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 
         // create a communication thread
         pthread_t receiver_thread;
-        if (pthread_create(&receiver_thread, NULL, &communication_thread_t, &client_socket) == -1) {
+        if (pthread_create(&receiver_thread, NULL, &communication_thread_t, (void *)client_socket) == -1) {
             perror("pthread_create");
             exit(EXIT_FAILURE);
         }
@@ -152,14 +152,17 @@ int main(int argc, char *argv[]) {
 
 
 // communication thread
-void* communication_thread_t(void* arg) {      // args: client_socket
+void* communication_thread_t(void *arg) {      // args: client_socket
 
-    int client_socket = *(int*)arg;
+    // int client_socket = *(int*)arg;
+    uint64_t client_socket = (uint64_t) arg;
+    printf(" [Thread: %ld]: Connection with client_socket :%ld\n", pthread_self(), client_socket);
 
     // 1. Read number of bytes for the directory string
-    int bytes_to_read = 0;
-    read(client_socket, &bytes_to_read, sizeof(bytes_to_read));
-    bytes_to_read = ntohs(bytes_to_read);
+    uint16_t bytes_to_read_t = 0;
+    read(client_socket, &bytes_to_read_t, sizeof(bytes_to_read_t));
+
+    uint16_t bytes_to_read = ntohs(bytes_to_read_t);
 
     // 2. Read the desired directory from client
     char *dir = malloc(bytes_to_read+1);
@@ -173,7 +176,7 @@ void* communication_thread_t(void* arg) {      // args: client_socket
     count_files(dir, &total_files);
     
     // 4. Write the number of files that will be copied to the socket
-    int no_files = htons(total_files);
+    uint16_t no_files = htons((uint16_t) total_files);
     write(client_socket, &no_files, sizeof(no_files));
 
     // 5. Find contents of dir and push to the queue  <File, Socket_fd>
@@ -223,7 +226,7 @@ void* worker_thread_t(void* args) {
         pthread_mutex_lock(&mutexes[i]->mutex);
 
         // 1. send number of bytes for the filename
-        int bytes_to_write = htons(strlen(filename));
+        uint16_t bytes_to_write = htons((uint16_t) strlen(filename));
         write(client_socket, &bytes_to_write, sizeof(bytes_to_write));
 
         // 2. send the filename

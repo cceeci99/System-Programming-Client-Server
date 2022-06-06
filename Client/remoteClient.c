@@ -31,7 +31,8 @@ int main(int argc, char *argv[]) {
 
     // arguments
     char serverIP[40];
-    char *directory = calloc(BUFFSIZE, sizeof(char));
+    char *directory = malloc(BUFFSIZE*sizeof(char));
+    memset(directory, 0, BUFFSIZE);
     int port;
 
     for (int i=1; i<argc; i++) {
@@ -77,24 +78,27 @@ int main(int argc, char *argv[]) {
     // ------------------------------------------------------
     
     // 1. Send to server how many bytes he will read for the directory name
-    int bytes_to_write = htons(strlen(directory));
+    uint16_t bytes_to_write = htons((uint16_t) strlen(directory));
     write(sock, &bytes_to_write, sizeof(bytes_to_write));
 
     // 2. Send the desired directory to copy
     write(sock, directory, strlen(directory));
 
+    
     // 3. Read the number of files that are gonna be copied
-    int no_files = 0;
-    read(sock, &no_files, sizeof(no_files));
-    no_files = ntohs(no_files);
+    uint16_t no_files_t = 0;
+    read(sock, &no_files_t, sizeof(no_files_t));
+
+    uint16_t no_files = ntohs(no_files_t);
 
     // for each file that is gonna be copied
     for (int i=0; i<no_files; i++) {
 
         // 1. Read the number of bytes for the filename
-        int bytes_to_read = 0;
-        read(sock, &bytes_to_read, sizeof(bytes_to_read));
-        bytes_to_read = ntohs(bytes_to_read);
+        uint16_t bytes_to_read_t = 0;
+        read(sock, &bytes_to_read_t, sizeof(bytes_to_read_t));
+        
+        uint16_t bytes_to_read = ntohs(bytes_to_read_t);
 
         // 2. Read the filename (relative path)
         char* filename = malloc((bytes_to_read+1)*sizeof(char));
@@ -145,40 +149,48 @@ int main(int argc, char *argv[]) {
 // -------------------------------------------------------------------------------------------------------
 void copy_file(FILE* fp, int socket) {
 
-    // 1. Read metadata of file (file_size in bytes)
-    int file_sz = 0;
-    read(socket, &file_sz, sizeof(file_sz));
-    file_sz = ntohl(file_sz);
+    // 1. Read metadata of file
+
+    // file_size
+    uint32_t file_sz_t = 0;
+    read(socket, &file_sz_t, sizeof(file_sz_t));
+    uint32_t file_sz = ntohl(file_sz_t);
+
+    // printf("file sz: %d\n", file_sz);
+
+    // block_size
+    uint16_t block_sz_t = 0;
+    read(socket, &block_sz_t, sizeof(block_sz_t));
+    uint16_t block_sz = ntohs(block_sz_t);
+
+    // printf("block sz: %d\n", block_sz);
 
     // copy untill all bytes from file are copied, client knows exactly how much he will read and doesn't block on any read call
     int total_bytes_copied = 0;
 
     while (total_bytes_copied < file_sz) {         
 
-        // 2. Read number of bytes per block to read
-        int block_bytes = 0;
-        read(socket, &block_bytes, sizeof(block_bytes));
-        block_bytes = ntohs(block_bytes);
+        // 3. Read contents and store them in block
+        char *block = malloc(block_sz*sizeof(char));
+        memset(block, 0, block_sz);
 
-        // 3. Read contents and store them in block variable
-        char* block = calloc(block_bytes, sizeof(char));
-        read(socket, block, block_bytes);
+        int bytes_read;
+        if (file_sz - total_bytes_copied < block_sz) {
+            bytes_read = read(socket, block, file_sz - total_bytes_copied);
+        }
+        else {
+            bytes_read = read(socket, block, block_sz);
+        }
 
         // 4. Write all the bytes of block into the file
-        fwrite(block, sizeof(char), block_bytes, fp);
+        fwrite(block, 1, bytes_read, fp);
 
-        total_bytes_copied += block_bytes;
+        total_bytes_copied = total_bytes_copied + bytes_read;
     }
+
+    // printf("total_bytes_copied: %d\n", total_bytes_copied);
 }
 
-
-// return 1 if given file exists or 0
-// ----------------------------------
-int file_exists(char *filename) {
-    
-    struct stat   buffer;   
-    return (stat (filename, &buffer) == 0);
-}
 
 // create directory with given name
 // --------------------------------
@@ -198,10 +210,6 @@ int create_dir(char *name) {
     memcpy(dir, name, bytes-1);
     dir[bytes-1] = '\0';
 
-    if (file_exists(dir)) {     // remove file with same name as dir if exists
-        unlink(dir);
-    }
-
     if (mkdir(dir, S_IRWXU) != 0 && errno != EEXIST) {
         perror("mkdir");
         exit(EXIT_FAILURE);
@@ -210,11 +218,12 @@ int create_dir(char *name) {
 }
 
 
-int is_regular_file(const char *path) {
+// return 1 if given file exists or 0
+// ----------------------------------
+int file_exists(char *filename) {
     
-    struct stat path_stat;
-    stat(path, &path_stat);
-    return S_ISREG(path_stat.st_mode);
+    struct stat   buffer;   
+    return (stat (filename, &buffer) == 0);
 }
 
 
@@ -222,11 +231,11 @@ int is_regular_file(const char *path) {
 // -------------------------------------------------------
 FILE* create_file(char *name) {
 
-    if (file_exists(name) && is_regular_file(name)) {        // if it exists delete it and create new one
+    if (file_exists(name)) {        // if it exists delete it and create new one
         unlink(name);
     }
 
-    FILE* fp = fopen(name, "w");    // creates and open file with write mode
+    FILE* fp = fopen(name, "wb");    // creates and open file with write mode
     if (fp == NULL) {
         perror("fopen");
         exit(EXIT_FAILURE);
