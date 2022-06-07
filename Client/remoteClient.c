@@ -30,10 +30,10 @@ void copy_file(FILE* fp, int socket);
 int main(int argc, char *argv[]) {
 
     // arguments
+    int port;
     char serverIP[40];
     char *directory = malloc(BUFFSIZE*sizeof(char));
     memset(directory, 0, BUFFSIZE);
-    int port;
 
     for (int i=1; i<argc; i++) {
 
@@ -84,7 +84,6 @@ int main(int argc, char *argv[]) {
     // 2. Send the desired directory to copy
     write(sock, directory, strlen(directory));
 
-    
     // 3. Read the number of files that are gonna be copied
     uint16_t no_files_t = 0;
     read(sock, &no_files_t, sizeof(no_files_t));
@@ -156,14 +155,10 @@ void copy_file(FILE* fp, int socket) {
     read(socket, &file_sz_t, sizeof(file_sz_t));
     uint32_t file_sz = ntohl(file_sz_t);
 
-    // printf("file sz: %d\n", file_sz);
-
     // block_size
     uint16_t block_sz_t = 0;
     read(socket, &block_sz_t, sizeof(block_sz_t));
     uint16_t block_sz = ntohs(block_sz_t);
-
-    // printf("block sz: %d\n", block_sz);
 
     // copy untill all bytes from file are copied, client knows exactly how much he will read and doesn't block on any read call
     int total_bytes_copied = 0;
@@ -183,12 +178,10 @@ void copy_file(FILE* fp, int socket) {
         }
 
         // 4. Write all the bytes of block into the file
-        fwrite(block, 1, bytes_read, fp);
+        fwrite(block, bytes_read, 1, fp);
 
         total_bytes_copied = total_bytes_copied + bytes_read;
     }
-
-    // printf("total_bytes_copied: %d\n", total_bytes_copied);
 }
 
 
@@ -214,6 +207,7 @@ int create_dir(char *name) {
         perror("mkdir");
         exit(EXIT_FAILURE);
     }
+
     return 0;
 }
 

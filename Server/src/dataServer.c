@@ -106,13 +106,13 @@ int main(int argc, char *argv[]) {
         struct sockaddr_in client_addr;
         socklen_t addr_size;
 
-        uint64_t client_socket =  (uint64_t) accept(server_socket, (struct sockaddr*) &client_addr, &addr_size);
+        int client_socket = accept(server_socket, (struct sockaddr *) &client_addr, &addr_size);
         if (client_socket == -1) {
             perror("accept");
             exit(EXIT_FAILURE);
         }
         
-        printf("Accepted connection from %s on client_socket:%ld\n", inet_ntoa(client_addr.sin_addr), client_socket);
+        printf("Accepted connection from %s\n", inet_ntoa(client_addr.sin_addr));
 
         // ---------------------------------------
         if (mutexes_size >= mutexes_capacity) {     // resize if mutexes_array size has reached capacity
@@ -139,7 +139,9 @@ int main(int argc, char *argv[]) {
 
         // create a communication thread
         pthread_t receiver_thread;
-        if (pthread_create(&receiver_thread, NULL, &communication_thread_t, (void *)client_socket) == -1) {
+
+        // cast client socket to int so it can be passed by value and not by address of same var (because thread creation is asynchronus)
+        if (pthread_create(&receiver_thread, NULL, &communication_thread_t, (void *) (uint64_t)client_socket) == -1) {      
             perror("pthread_create");
             exit(EXIT_FAILURE);
         }
@@ -156,7 +158,7 @@ void* communication_thread_t(void *arg) {      // args: client_socket
 
     // int client_socket = *(int*)arg;
     uint64_t client_socket = (uint64_t) arg;
-    printf(" [Thread: %ld]: Connection with client_socket :%ld\n", pthread_self(), client_socket);
+    // printf(" [Thread: %ld]: Connection with client_socket :%ld\n", pthread_self());
 
     // 1. Read number of bytes for the directory string
     uint16_t bytes_to_read_t = 0;

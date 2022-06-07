@@ -124,6 +124,8 @@ den tha exei antigrafei.
 mporei na fainetai h seiriakh ektelesh twn aithmatwn mias kai tha prolavainei na oloklirwthei to kathe aithma prin erthei to epomen, milwntas panta
 gia senaria treksimatos tou programmatos apo ton xrhsth.
 
+4. To programma dokimastike gia kapoia regular files, pdfs akomh kai .jpg, kata vash estiazoume sta regular files mikrou megethous omws.
+
 ******************
 ** To ektelesimo tou Client prepei na to treksete mesa apo to directory Client dhladh:
   cd Client

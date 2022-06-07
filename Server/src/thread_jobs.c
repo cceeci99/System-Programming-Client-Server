@@ -102,8 +102,12 @@ void send_file_content(char* file, int client_socket) {
     int total_bytes_sent = 0;
 
     // 2. Send Contents of file (it's data)
-    while ((fread(buff, 1, block_sz, fp)) > 0) {      // read block by block, store in buff and return bytes read in buff_sz
+    while (total_bytes_sent < file_sz) {
         
+        memset(buff, 0, block_sz);
+        
+        fread(buff, block_sz, 1, fp);       // read 1 element with block_sz size and store it in buff
+
         int bytes_written = 0;
         if (file_sz - total_bytes_sent < block_sz) {
             bytes_written = write(client_socket, buff, file_sz - total_bytes_sent);
@@ -113,8 +117,6 @@ void send_file_content(char* file, int client_socket) {
         }
 
         total_bytes_sent = total_bytes_sent + bytes_written;
-
-        memset(buff, 0, block_sz);
     }
 }
 
