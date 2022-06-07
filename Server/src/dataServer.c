@@ -140,7 +140,8 @@ int main(int argc, char *argv[]) {
         // create a communication thread
         pthread_t receiver_thread;
 
-        // cast client socket to int so it can be passed by value and not by address of same var (because thread creation is asynchronus)
+        // cast client socket (as uint64_t) to pointer (size of pointer on linux is usually 64bit) 
+        // so it can be passed by value and not by address of same var (because thread creation is asynchronus)
         if (pthread_create(&receiver_thread, NULL, &communication_thread_t, (void *) (uint64_t)client_socket) == -1) {      
             perror("pthread_create");
             exit(EXIT_FAILURE);
@@ -156,9 +157,7 @@ int main(int argc, char *argv[]) {
 // communication thread
 void* communication_thread_t(void *arg) {      // args: client_socket
 
-    // int client_socket = *(int*)arg;
-    uint64_t client_socket = (uint64_t) arg;
-    // printf(" [Thread: %ld]: Connection with client_socket :%ld\n", pthread_self());
+    int client_socket = (uint64_t) arg;
 
     // 1. Read number of bytes for the directory string
     uint16_t bytes_to_read_t = 0;
